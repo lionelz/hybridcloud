@@ -1,0 +1,41 @@
+#!/bin/bash
+set -x
+
+CONF_DIRS="/etc/neutron /etc/hybridcloud"
+PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip"
+
+if [ -f "/media/metadata/userdata.txt" ]
+then
+    # must contain
+    # export rabbit_userid=guest
+    # export rabbit_password=stack
+    # export rabbit_host=10.20.0.3
+    # export host=123456-123456
+    source /media/metadata/userdata.txt
+else
+    echo "no user data file"
+    exit -1
+fi
+
+export local_ip=`ip -o -4 a | grep eth1 | awk -e '{print $4}' | cut -f1 -d'/'`
+
+# replace the tmpl values
+sed_command=""
+for p in $PARAMS; do
+   val=${!p}
+   sed_command=`echo "s/##$p##/${val//\//\\\/}/g;$sed_command"`
+done;
+echo $sed_command
+
+for d in $CONF_DIRS; do
+   for f_tmpl in `find $d -name "*.tmpl"`; do
+      f="${f_tmpl%.*}"
+      sed $f_tmpl -e $sed_command > $f
+   done;
+done;
+
+echo $host > /etc/hostname
+hostname $host
+grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
+echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
+cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts

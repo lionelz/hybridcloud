@@ -1,0 +1,80 @@
+#!/bin/bash
+set -x
+
+function get_cidr {
+     mac=`cat /sys/class/net/$1/address`
+     ip=`curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/$mac/local-ipv4s`
+     cidr=`curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/$mac/subnet-ipv4-cidr-block`
+     echo $ip/${cidr##*/}
+}
+
+function get_ip {
+     mac=`cat /sys/class/net/$1/address`
+     ip=`curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/$mac/local-ipv4s`
+     echo $ip
+}
+
+# set eth0 gateway
+ip route del 0/0
+eth0_ip=`ip -o -4 a | grep eth0 | awk -e '{print $4}' | cut -f1 -d'/'`
+route add default gw $eth0_ip
+route -n
+
+USER_DATA=`curl http://169.254.169.254/latest/user-data/`
+CONF_DIRS="/etc/neutron /etc/hyperagent /etc"
+PARAMS="tunnel_bearing_ip rabbit_userid rabbit_host rabbit_password hypernode_interface hypernode_cidr default_gw host local_ip"
+
+for data in $USER_DATA; do
+    set -- `echo $data | tr '=' ' '`
+    export $1=$2
+done;
+
+if [ "$use_user_vars" != "true" ]
+then
+   echo "user vars are not in used."
+   exit 0;
+fi
+
+# replace the tmpl values
+if [ "$internal_base_interface" != "" ]
+then
+    local_ip=$(get_ip $internal_base_interface)
+fi
+if [ "$tunnel_bearing_interface" != "" ]
+then
+    tunnel_bearing_ip=$(get_ip $tunnel_bearing_interface)
+fi
+# default gateway calculation
+hypernode_ip=$(get_ip $hypernode_interface)
+hypernode_cidr=$(get_cidr $hypernode_interface)
+default_gw="${hypernode_cidr%.*}.1"
+
+sed_command=""
+for p in $PARAMS; do
+   val=${!p}
+   sed_command=`echo "s/##$p##/${val//\//\\\/}/g;$sed_command"`
+done;
+echo $sed_command
+
+for d in $CONF_DIRS; do
+   for f_tmpl in `find $d -name "*.tmpl"`; do
+      f="${f_tmpl%.*}"
+      sed $f_tmpl -e $sed_command > $f
+   done;
+done;
+
+echo $host > /etc/hostname
+hostname $host
+
+# TODO: take in account the last version without tunnel_bearing_cidr
+# add the routes
+if [ "$tunnel_bearing_interface" != "" ]
+then
+    ip route add ${tunnel_bearing_cidr} via ${tunnel_bearing_ip}
+fi
+if [ "$internal_base_interface" != "" ]
+then
+    ip route add ${rabbit_host}/32 via ${local_ip}
+fi
+ip route del 0/0
+route add default gw $default_gw
