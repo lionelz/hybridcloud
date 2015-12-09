@@ -1,6 +1,6 @@
 # hybridcloud
 
-# TODO: devstack with vcloud nova driver
+# devstack with vcloud nova driver
 
 1. get devstack, juno version
 -----------------------------
@@ -33,10 +33,26 @@ disable_service h-api
 disable_service h-api-cfn
 disable_service h-api-cw
 
+enable_plugin hybridcloud https://github.com/lionelz/hybridcloud
+
+
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 compute_driver = nova.virt.hybrid.VCloudDriver
 
+[vcloud]
+vcloud_conversion_dir = /opt/HUAWEI/image
+vcloud_vdc = vdf-vdc
+vcloud_host_password = a-user
+vcloud_org = VDF-ORG
+vcloud_host_ip = 192.168.10.73
+vcloud_vm_naming_rule = cascaded_openstack_rule
+vcloud_volumes_dir = /opt/HUAWEI/image
+vcloud_flavor_map =  m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large:1, m1.xlarge:1
+vcloud_host_username = a-user
+vcloud_node_name = vcloud_node_01
+provider_api_network_name = api-network
+provider_tunnel_network_name = data-network
 
 
 # agent installation for ubuntu 14.04

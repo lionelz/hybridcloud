@@ -314,8 +314,8 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
         self._vcloud_client.upload_vm(
             ovf_name,
             vapp_name,
-            CONF.vcloud.provider_api_network_name,
-            CONF.vcloud.provider_tunnel_network_name)
+            CONF.vcloud.provider_tunnel_network_name,
+            CONF.vcloud.provider_api_network_name)
 
         self._update_vm_task_state(
             instance,

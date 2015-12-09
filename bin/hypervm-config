@@ -17,7 +17,7 @@ else
     exit -1
 fi
 
-export local_ip=`ip -o -4 a | grep eth1 | awk -e '{print $4}' | cut -f1 -d'/'`
+export local_ip=`ip -o -4 a | grep eth0 | awk -e '{print $4}' | cut -f1 -d'/'`
 
 # replace the tmpl values
 sed_command=""
