@@ -1,14 +1,16 @@
-# hybridcloud
+# Hybrid Cloud sample code project for vCloud and AWS 
 
-# devstack with vcloud nova driver
+## devstack all in one installation with vcloud nova driver
 
-1. get devstack, juno version
------------------------------
+1. Based on ubuntu server 14.04 installation
+
+2. get devstack, juno version
+
      git clone https://github.com/openstack-dev/devstack.git -b stable/juno
 
-2. local.conf configuration
----------------------------
+3. local.conf configuration sample
 
+```
 [[local|localrc]]
 
 HOST_IP=##your host ip##
@@ -41,19 +43,19 @@ enable_plugin hybridcloud https://github.com/lionelz/hybridcloud
 compute_driver = nova.virt.hybrid.VCloudDriver
 
 [vcloud]
-vcloud_conversion_dir = /opt/HUAWEI/image
-vcloud_vdc = vdf-vdc
-vcloud_host_password = a-user
-vcloud_org = VDF-ORG
-vcloud_host_ip = 192.168.10.73
-vcloud_vm_naming_rule = cascaded_openstack_rule
-vcloud_volumes_dir = /opt/HUAWEI/image
+vcloud_conversion_dir = /opt/stack/data/hybridcloud
+vcloud_volumes_dir = /opt/stack/data/hybridcloud
+vcloud_host_ip = ##vcloud ip##
+vcloud_vdc = ##vcloud vdc##
+vcloud_org = ##vcloud org##
+vcloud_host_username = ##vcloud user##
+vcloud_host_password = ##vcloud password##
+vcloud_vm_naming_rule = openstack_vm_id
 vcloud_flavor_map =  m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large:1, m1.xlarge:1
-vcloud_host_username = a-user
-vcloud_node_name = vcloud_node_01
+vcloud_node_name = ##node description name##
 provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
-
+```
 
 # agent installation for ubuntu 14.04
 1. add juno openstack repository
