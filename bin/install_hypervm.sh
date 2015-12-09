@@ -6,10 +6,10 @@ FROM_DIR=/home/hybrid/hybridcloud
 PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 
 # python packages
-rm -rf $PYTHON_PKG_DIR/hybridcloud
-rm -rf $PYTHON_PKG_DIR/hybridcloud.egg-info
-cp -r $FROM_DIR/hybridcloud $PYTHON_PKG_DIR
-cp -r $FROM_DIR/hybridcloud.egg-info $PYTHON_PKG_DIR/hybridcloud-0.0.1.egg-info
+rm -rf $PYTHON_PKG_DIR/hybridagent
+rm -rf $PYTHON_PKG_DIR/hybridagent.egg-info
+cp -r $FROM_DIR/hybridagent $PYTHON_PKG_DIR
+cp -r $FROM_DIR/hybridagent.egg-info $PYTHON_PKG_DIR/hybridagent-0.0.1.egg-info
 
 # binaries
 bin_files='hyper-agent hyper-agent-cleanup hyper-agent-rootwrap hypervm-config hypernode-config'
