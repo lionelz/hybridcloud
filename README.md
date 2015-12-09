@@ -2,8 +2,12 @@
 
 # TODO: devstack with vcloud nova driver
 
-local.conf:
------------
+1. get devstack, juno version
+-----------------------------
+     git clone https://github.com/openstack-dev/devstack.git -b stable/juno
+
+2. local.conf configuration
+---------------------------
 
 [[local|localrc]]
 
@@ -35,10 +39,10 @@ compute_driver = nova.virt.hybrid.VCloudDriver
 
 
 
-# TODO: agent installation for ubuntu 14.04
-- add juno openstack repository
-- install neutron agent
-- install nova code
-- git code + install
-sudo apt-get install git
+# agent installation for ubuntu 14.04
+1. add juno openstack repository
+2. install neutron agent
+3. install nova code
+4. git code + install
+    sudo apt-get install git
 
