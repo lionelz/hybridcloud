@@ -1,12 +1,14 @@
 # Hybrid Cloud sample code project for vCloud and AWS 
 
-## devstack all in one installation with vcloud nova driver
+## Devstack all-in-one installation with vcloud nova driver
 
 1. Based on ubuntu server 14.04 installation
 
 2. get devstack, juno version
 
-     git clone https://github.com/openstack-dev/devstack.git -b stable/juno
+     git clone https://github.com/openstack-dev/devstack.git
+     cd devstack
+     git checkout juno-eol
 
 3. local.conf configuration sample
 
@@ -34,9 +36,23 @@ disable_service h-eng
 disable_service h-api
 disable_service h-api-cfn
 disable_service h-api-cw
+disable_service tempest
 
-enable_plugin hybridcloud https://github.com/lionelz/hybridcloud
+enable_plugin hybridcloud https://github.com/lionelz/hybridcloud.git
 
+CEILOMETER_BRANCH=juno-eol
+CINDER_BRANCH=juno-eol
+GLANCE_BRANCH=juno-eol
+HEAT_BRANCH=juno-eol
+HORIZON_BRANCH=juno-eol
+IRONIC_BRANCH=juno-eol
+KEYSTONE_BRANCH=juno-eol
+NEUTRON_BRANCH=juno-eol
+NOVA_BRANCH=juno-eol
+SAHARA_BRANCH=juno-eol
+SWIFT_BRANCH=juno-eol
+TROVE_BRANCH=juno-eol
+REQUIREMENTS_BRANCH=juno-eol
 
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
@@ -57,10 +73,13 @@ provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
 ```
 
-# agent installation for ubuntu 14.04
+## Agent VM creation based on ubuntu 14.04
 1. add juno openstack repository
 2. install neutron agent
 3. install nova code
 4. git code + install
     sudo apt-get install git
+
+## TODO: Devstack all-in-one installation with AWS nova driver
+
 
