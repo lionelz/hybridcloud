@@ -41,17 +41,25 @@ cfg.CONF.register_opts(hyper_node_agent_opts, 'hyperagent')
 LOG = logging.getLogger(__name__)
 NIC_NAME_LEN = hypervm_vif.NIC_NAME_LEN
 
-
+# TODO: test it after refactoring
 class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hypernode networking."""
     
-    def __init__(self):
+    def __init__(self, instance_id, call_back):
         super(HyperNodeVIFDriver, self).__init__()
         self.br_trans = cfg.CONF.hyperagent.translation_bridge
         self.nic = cfg.CONF.hyperagent.network_interface
         self.cidr = cfg.CONF.hyperagent.network_cidr
         self.gw_ip = cfg.CONF.hyperagent.default_gw
         self.create_ovs_br()
+        super(HyperNodeVIFDriver, self).__init__(instance_id, call_back)
+
+    def startup_init(self):
+        vifs_for_inst = self.call_back.get_vifs_for_hyper_node(self.instance_id)
+        net_info = vifs_for_inst.get('net_info')
+        provider_net_info = vifs_for_inst.get('provider_net_info')
+        for vif, provider_vif in zip(net_info, provider_net_info):
+            self.plug(self.instance_id, vif, provider_vif)
 
     def cleanup(self):
         hu.del_bridge(cfg.CONF.hyperagent.translation_bridge)

@@ -82,13 +82,9 @@ class HyperAgent(object):
 
         # instance according to configuration
         self.vif_driver = importutils.import_object(
-            cfg.CONF.hyper_agent_vif_driver)
+            cfg.CONF.hyper_agent_vif_driver, self.instance_id, self.call_back)
 
-        vifs_for_inst = self.call_back.get_vifs_for_instance(self.instance_id)
-        net_info = vifs_for_inst.get('net_info')
-        provider_net_info = vifs_for_inst.get('provider_net_info')
-        for vif, provider_vif in zip(net_info, provider_net_info):
-            self.vif_driver.plug(self.instance_id, vif, provider_vif)
+        self.vif_driver.startup_init()
 
         self.server.start()
 

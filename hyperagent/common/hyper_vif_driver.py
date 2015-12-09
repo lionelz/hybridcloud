@@ -7,6 +7,10 @@ import six
 class HyperVIFDriver(object):
 
     @abc.abstractmethod
+    def startup_init(self):
+        pass
+
+    @abc.abstractmethod
     def cleanup(self):
         pass
 

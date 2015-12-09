@@ -25,7 +25,20 @@ NIC_NAME_LEN = 14
 class HyperVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
     """VIF driver for hypervm networking."""
     
+    def __init__(self, instance_id, call_back):
+        self.call_back = call_back
+        self.instance_id = instance_id
+        super(HyperVMVIFDriver, self).__init__()
+        
+    def startup_init(self):
+        vifs_for_inst = self.call_back.get_vifs_for_instance(self.instance_id)
+        net_info = vifs_for_inst.get('net_info')
+        provider_net_info = vifs_for_inst.get('provider_net_info')
+        for vif, provider_vif in zip(net_info, provider_net_info):
+            self.plug(self.instance_id, vif, provider_vif)
+
     def cleanup(self):
+        # nothing to do
         pass
 
     def get_br_name(self, iface_id):
@@ -38,9 +51,6 @@ class HyperVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
     def get_veth_pair_names2(self, iface_id):
         return (("tap%s" % iface_id)[:NIC_NAME_LEN],
                 ("tvo%s" % iface_id)[:NIC_NAME_LEN])
-
-    def __init__(self):
-        super(HyperVMVIFDriver, self).__init__()
 
     def get_bridge_name(self, vif):
         br_int = vif['network']['bridge']

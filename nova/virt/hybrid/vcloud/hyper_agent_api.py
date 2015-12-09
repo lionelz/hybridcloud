@@ -61,6 +61,11 @@ class HyperAgentCallback(object):
         return {'net_info': net_info,
                 'provider_net_info': [None, None, None]}
 
+    def get_vifs_for_hyper_node(self, context, **kwargs):
+        """Return the list of VIF for an hyper node."""
+        hyper_node_id = kwargs['hyper_node_id']
+        # TODO: implementation that return all the instances of the CN
+
 
 class HyperAgentAPI(object):
     """Client side of the Hyper Node RPC API
