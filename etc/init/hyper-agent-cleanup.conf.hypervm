@@ -6,5 +6,5 @@ start on started hypervm-config
 
 pre-start script
   [ ! -x /usr/bin/hyper-agent-cleanup ] && exit 0
-  /usr/bin/hyper-agent-cleanup --log-file /var/log/hyperagent/hyper-agent-cleanup.log --config-file /etc/hyperagent/hyper-agent.conf
+  /usr/bin/hyper-agent-cleanup --log-file /var/log/hybridcloud/hyper-agent-cleanup.log --config-file /etc/hybridcloud/hyper-agent.conf
 end script

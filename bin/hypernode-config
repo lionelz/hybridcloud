@@ -21,7 +21,7 @@ route add default gw $eth0_ip
 route -n
 
 USER_DATA=`curl http://169.254.169.254/latest/user-data/`
-CONF_DIRS="/etc/neutron /etc/hyperagent /etc"
+CONF_DIRS="/etc/neutron /etc/hybridcloud /etc"
 PARAMS="tunnel_bearing_ip rabbit_userid rabbit_host rabbit_password hypernode_interface hypernode_cidr default_gw host local_ip"
 
 for data in $USER_DATA; do

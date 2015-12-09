@@ -36,7 +36,7 @@ cp $FROM_DIR/etc/init/hyper-agent-cleanup.conf.hypervm /etc/init/hyper-agent-cle
 rm -rf /etc/hybridcloud
 cp -r $FROM_DIR/etc/hybridcloud /etc
 rm /etc/hybridcloud/hyper-agent.conf.hypernode.tmpl
-mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hyperagent/hyper-agent.conf.tmpl
+mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hybridcloud/hyper-agent.conf.tmpl
 
 # var folder
 rm -rf /var/log/hybridcloud
