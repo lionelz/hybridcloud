@@ -74,7 +74,7 @@ def init(args, **kwargs):
     cfg.CONF(args=args, project='hyperagent',
              version='%%(prog)s %s' % version.version_info.release_string(),
              **kwargs)
-    from nova.common import rpc as n_rpc
+    from nova import rpc as n_rpc
     n_rpc.init(cfg.CONF)
 
 
