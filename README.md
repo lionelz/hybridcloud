@@ -6,15 +6,23 @@
 
 2. get devstack, juno version
 
-     git clone https://github.com/openstack-dev/devstack.git
-     cd devstack
-     git checkout juno-eol
+    git clone https://github.com/openstack-dev/devstack.git
+    cd devstack
+    git checkout juno-eol
 
-3. local.conf configuration sample
+3. get hybroudcloud code
+
+    cd /opt/stack
+    git clone https://github.com/lionelz/hybridcloud.git
+
+4. Install pyvcloud version 10
+
+    sudo pip install pyvcloud==10
+
+5. local.conf configuration sample
 
 ```
 [[local|localrc]]
-
 HOST_IP=##your host ip##
 
 ADMIN_PASSWORD=stack
@@ -38,8 +46,6 @@ disable_service h-api-cfn
 disable_service h-api-cw
 disable_service tempest
 
-enable_plugin hybridcloud https://github.com/lionelz/hybridcloud.git
-
 CEILOMETER_BRANCH=juno-eol
 CINDER_BRANCH=juno-eol
 GLANCE_BRANCH=juno-eol
@@ -56,8 +62,7 @@ REQUIREMENTS_BRANCH=juno-eol
 
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
-compute_driver = nova.virt.hybrid.VCloudDriver
-
+compute_driver = nova_driver.virt.hybrid.VCloudDriver
 [vcloud]
 vcloud_conversion_dir = /opt/stack/data/hybridcloud
 vcloud_volumes_dir = /opt/stack/data/hybridcloud
@@ -72,12 +77,12 @@ vcloud_node_name = ##node description name##
 provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
 ```
-
+ 
 ## Agent VM creation based on ubuntu 14.04
 1. add juno openstack repository
 2. install neutron agent
 3. install nova code
-4. git code + install
+4. Hybrid code and install
     sudo apt-get install git
 
 ## TODO: Devstack all-in-one installation with AWS nova driver

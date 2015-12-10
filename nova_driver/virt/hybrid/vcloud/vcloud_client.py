@@ -5,8 +5,8 @@ import time
 
 from nova import exception
 from nova.openstack.common import log as logging
-from nova.virt.hybrid.vcloud.vcloud import RetryDecorator
-from nova.virt.hybrid.vcloud.vcloud import VCloudAPISession
+from nova_driver.virt.hybrid.vcloud.vcloud import RetryDecorator
+from nova_driver.virt.hybrid.vcloud.vcloud import VCloudAPISession
 from oslo.config import cfg
 from setuptools.command.egg_info import overwrite_arg
 

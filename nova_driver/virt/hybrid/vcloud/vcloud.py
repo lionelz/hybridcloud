@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nova.virt.hybrid.vcloud import exceptions
+from nova_driver.virt.hybrid.vcloud import exceptions
 from oslo.utils import excutils
 from oslo.vmware.common import loopingcall
 from oslo.utils import excutils

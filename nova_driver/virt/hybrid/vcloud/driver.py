@@ -32,13 +32,13 @@ from nova import image
 from nova.openstack.common import log as logging
 from nova.openstack.common import fileutils as fileutils
 from nova.virt import driver
-from nova.virt.hybrid.common import fake_driver
-from nova.virt.hybrid.common import common_tools
-from nova.virt.hybrid.vcloud import hyper_agent_api
-from nova.virt.hybrid.vcloud import util
-from nova.virt.hybrid.vcloud import vcloud_task_states
-from nova.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
-from nova.virt.hybrid.vcloud.vcloud_client import VCloudClient
+from nova_driver.virt.hybrid.common import fake_driver
+from nova_driver.virt.hybrid.common import common_tools
+from nova_driver.virt.hybrid.vcloud import hyper_agent_api
+from nova_driver.virt.hybrid.vcloud import util
+from nova_driver.virt.hybrid.vcloud import vcloud_task_states
+from nova_driver.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
+from nova_driver.virt.hybrid.vcloud.vcloud_client import VCloudClient
 from nova.volume.cinder import API as cinder_api
 
 vcloudapi_opts = [
