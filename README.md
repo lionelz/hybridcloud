@@ -6,18 +6,24 @@
 
 2. get devstack, juno version
 
+```
     git clone https://github.com/openstack-dev/devstack.git
     cd devstack
     git checkout juno-eol
+```
 
 3. get hybroudcloud code
 
+```
     cd /opt/stack
     git clone https://github.com/lionelz/hybridcloud.git
+```
 
 4. Install pyvcloud version 10
 
+```
     sudo pip install pyvcloud==10
+```
 
 5. local.conf configuration sample
 
