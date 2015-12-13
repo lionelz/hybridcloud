@@ -2,25 +2,25 @@
 
 ## Devstack all-in-one installation with vcloud nova driver
 
-    - Based on ubuntu server 14.04 installation
-    - get devstack, juno version (eol)
+- Based on ubuntu server 14.04 installation
+- get devstack, juno version (eol)
 ```
     git clone https://github.com/openstack-dev/devstack.git
     cd devstack
     git checkout juno-eol
 ```
-    - get hybroudcloud code
+- get hybroudcloud code
 ```
     cd /opt/stack
     git clone https://github.com/lionelz/hybridcloud.git
 ```
-    - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
-    - Install pyvcloud version 10
+- copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
+- Install pyvcloud version 10
 ```
     sudo pip install pyvcloud==10
 ```
-    - install ovftool
-    - local.conf configuration sample
+- install ovftool
+- local.conf configuration sample
 ```
 [[local|localrc]]
 HOST_IP=##your data interface host ip##
