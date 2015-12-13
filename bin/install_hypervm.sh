@@ -40,7 +40,8 @@ mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hybridcloud/hyper-agent.c
 
 # neutron template
 rm -rf `find /etc/neutron -name "*.tmpl"`
-cp -r $FROM_DIR/etc/neutron /etc/neutron
+cp $FROM_DIR/etc/neutron/neutron.conf.tmpl /etc/neutron
+cp $FROM_DIR/etc/neutron/plugins/ml2/ml2_conf.ini.tmpl /etc/neutron/plugins/ml2
 
 # var folder
 rm -rf /var/log/hybridcloud
