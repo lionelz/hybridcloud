@@ -3,22 +3,17 @@
 ## Devstack all-in-one installation with vcloud nova driver
 
 1. Based on ubuntu server 14.04 installation
-
 2. get devstack, juno version (eol)
-
 ```
     git clone https://github.com/openstack-dev/devstack.git
     cd devstack
     git checkout juno-eol
 ```
-
 3. get hybroudcloud code
-
 ```
     cd /opt/stack
     git clone https://github.com/lionelz/hybridcloud.git
 ```
-
 4. Install pyvcloud version 10
 
 ```
