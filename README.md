@@ -9,13 +9,14 @@
     cd devstack
     git checkout juno-eol
 ```
+
 3. get hybroudcloud code
 ```
     cd /opt/stack
     git clone https://github.com/lionelz/hybridcloud.git
 ```
-4. Install pyvcloud version 10
 
+4. Install pyvcloud version 10
 ```
     sudo pip install pyvcloud==10
 ```
@@ -23,7 +24,6 @@
 5. install ovftool
 
 6. local.conf configuration sample
-
 ```
 [[local|localrc]]
 HOST_IP=##your data interface host ip##
@@ -68,7 +68,6 @@ REQUIREMENTS_BRANCH=juno-eol
 enable_vxlan = True
 local_ip = ##your managment interface host ip##
 
-
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 compute_driver = nova_driver.virt.hybrid.VCloudDriver
@@ -88,7 +87,6 @@ provider_tunnel_network_name = data-network
 ```
 
 7. copy the base-1.vmx file to /opt/stack/data/hybridcloud/vmx
-
  
 ## Agent VM creation based on ubuntu 14.04
 1. add juno openstack repository
