@@ -9,21 +9,17 @@
     cd devstack
     git checkout juno-eol
 ```
-
     - get hybroudcloud code
 ```
     cd /opt/stack
     git clone https://github.com/lionelz/hybridcloud.git
 ```
-
-    - copy the base-1.vmx file to /opt/stack/data/hybridcloud/vmx
+    - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
     - Install pyvcloud version 10
 ```
     sudo pip install pyvcloud==10
 ```
-
     - install ovftool
-
     - local.conf configuration sample
 ```
 [[local|localrc]]
