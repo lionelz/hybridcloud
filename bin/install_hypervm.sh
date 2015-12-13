@@ -1,8 +1,7 @@
 #!/bin/bash
-
 set -x
 
-FROM_DIR=/home/hybrid/hybridcloud
+FROM_DIR=`pwd`
 PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 
 # hyper agent python packages

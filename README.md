@@ -1,4 +1,4 @@
-# Hybrid Cloud sample code project for vCloud and AWS 
+# Hybrid Cloud Connectivity Sample Code 
 
 ## Devstack all-in-one installation with vcloud nova driver
 
@@ -83,12 +83,36 @@ provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
 ```
  
-## Agent VM creation based on ubuntu 14.04
-1. add juno openstack repository
-2. install neutron agent
-3. install nova code
-4. Hybrid code and install
+## Agent VM creation
+- Based on ubuntu 14.04
+- Edit the /etc/sysctl.conf file to contain the following parameters:
+```
+    net.ipv4.conf.all.rp_filter=0
+    net.ipv4.conf.default.rp_filter=0
+```
+- Implement the changes:
+```
+    sudo sysctl -p
+```
+- add juno openstack repository
+```
+    sudo add-apt-repository cloud-archive:juno
+```
+- install neutron agent
+```
+    sudo apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
+```
+- install nova code
+```
+    sudo apt-get --no-install-recommends -y install python-nova
+```
+- Hybrid code and install
+```
     sudo apt-get install git
+    git clone https://github.com/lionelz/hybridcloud.git
+    cd hybridcloud/bin
+    sudo ./install_hypervm.sh
+```
 
 ## TODO: Devstack all-in-one installation with AWS nova driver
 
