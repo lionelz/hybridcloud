@@ -4,7 +4,7 @@
 
 1. Based on ubuntu server 14.04 installation
 
-2. get devstack, juno version
+2. get devstack, juno version (eol)
 
 ```
     git clone https://github.com/openstack-dev/devstack.git
@@ -25,17 +25,19 @@
     sudo pip install pyvcloud==10
 ```
 
-5. local.conf configuration sample
+5. install ovftool
+
+6. local.conf configuration sample
 
 ```
 [[local|localrc]]
-HOST_IP=##your host ip##
+HOST_IP=##your data interface host ip##
 
 ADMIN_PASSWORD=stack
 DATABASE_PASSWORD=$ADMIN_PASSWORD
 RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
-SERVICE_TOKEN=a682f596-76f3-11e3-b3b2-e716f9080d50
+SERVICE_TOKEN=## unique service token##
 
 disable_service n-net
 enable_service q-svc
@@ -66,6 +68,12 @@ SWIFT_BRANCH=juno-eol
 TROVE_BRANCH=juno-eol
 REQUIREMENTS_BRANCH=juno-eol
 
+[[post-config|/$Q_PLUGIN_CONF_FILE]]
+[vxlan]
+enable_vxlan = True
+local_ip = ##your managment interface host ip##
+
+
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 compute_driver = nova_driver.virt.hybrid.VCloudDriver
@@ -83,6 +91,9 @@ vcloud_node_name = ##node description name##
 provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
 ```
+
+7. copy the base-1.vmx file to /opt/stack/data/hybridcloud/vmx
+
  
 ## Agent VM creation based on ubuntu 14.04
 1. add juno openstack repository

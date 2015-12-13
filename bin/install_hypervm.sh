@@ -9,7 +9,7 @@ PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 rm -rf $PYTHON_PKG_DIR/hyperagent
 rm -rf $PYTHON_PKG_DIR/hyperagent-info
 cp -r $FROM_DIR/hyperagent $PYTHON_PKG_DIR
-cp -r $FROM_DIR/hyperagent-info $PYTHON_PKG_DIR/hyperagent-0.0.1.egg-info
+cp -r $FROM_DIR/hyperagent.egg-info $PYTHON_PKG_DIR/hyperagent-0.0.2.egg-info
 
 # binaries
 bin_files='hyper-agent hyper-agent-cleanup hyper-agent-rootwrap hypervm-config hypernode-config'
@@ -40,7 +40,7 @@ mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hybridcloud/hyper-agent.c
 
 # neutron template
 rm -rf `find /etc/neutron -name "*.tmpl"`
-cp -r $FROM_DIR/etc/neutron/ /etc/neutron
+cp -r $FROM_DIR/etc/neutron /etc/neutron
 
 # var folder
 rm -rf /var/log/hybridcloud
