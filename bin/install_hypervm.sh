@@ -1,6 +1,31 @@
 #!/bin/bash
 set -x
 
+# check sysctl configuration
+
+edit_sysctl () {
+    TARGET_KEY=$1
+    REPLACEMENT_VALUE=$2
+    CONFIG_FILE=/etc/sysctl.conf
+    if grep -q "^[ ^I]*$TARGET_KEY[ ^I]*=" "$CONFIG_FILE"; then
+        sed -i -e "s^A^\\([ ^I]*$TARGET_KEY[ ^I]*=[ ^I]*\\).*$^A\\1$REPLACEMENT_VALUE^A" "$CONFIG_FILE"
+    else
+        echo "$TARGET_KEY = $REPLACEMENT_VALUE" >> "$CONFIG_FILE"
+    fi
+}
+
+edit_sysctl net.ipv4.conf.all.rp_filter 0
+edit_sysctl net.ipv4.conf.default.rp_filter 0
+sysctl -p
+
+# install the nova/neutron packages
+add-apt-repository -y cloud-archive:juno
+apt-get -y update
+apt-get -y upgrade
+apt-get -y dist-upgrade
+apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
+apt-get --no-install-recommends -y install python-nova
+
 FROM_DIR=`pwd`
 PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 

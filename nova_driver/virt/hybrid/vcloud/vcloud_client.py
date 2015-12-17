@@ -1,36 +1,38 @@
-
+import abc
 import subprocess
 import time
 
 
 from nova import exception
 from nova.openstack.common import log as logging
+
+from nova_driver.virt.hybrid.common import provider_client
 from nova_driver.virt.hybrid.vcloud.vcloud import RetryDecorator
 from nova_driver.virt.hybrid.vcloud.vcloud import VCloudAPISession
+
 from oslo.config import cfg
-from setuptools.command.egg_info import overwrite_arg
 
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 
-class VCloudClient(object):
+class VCloudClient(provider_client.ProviderClient):
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, scheme):
         self._metadata_iso_catalog = CONF.vcloud.metadata_iso_catalog
         self._session = VCloudAPISession(
-            host_ip=CONF.vcloud.vcloud_host_ip,
-            host_port=CONF.vcloud.vcloud_host_port,
-            server_username=CONF.vcloud.vcloud_host_username,
-            server_password=CONF.vcloud.vcloud_host_password,
-            org=CONF.vcloud.vcloud_org,
-            vdc=CONF.vcloud.vcloud_vdc,
-            version=CONF.vcloud.vcloud_version,
-            service=CONF.vcloud.vcloud_service,
-            verify=CONF.vcloud.vcloud_verify,
-            service_type=CONF.vcloud.vcloud_service_type,
-            retry_count=CONF.vcloud.vcloud_api_retry_count,
+            host_ip=CONF.vcloud.host_ip,
+            host_port=CONF.vcloud.host_port,
+            server_username=CONF.vcloud.host_username,
+            server_password=CONF.vcloud.host_password,
+            org=CONF.vcloud.org,
+            vdc=CONF.vcloud.vdc,
+            version=CONF.vcloud.version,
+            verify=CONF.vcloud.verify,
+            service_type=CONF.vcloud.service_type,
+            retry_count=CONF.hybrid_driver.api_retry_count,
             create_session=True,
             scheme=scheme)
 
@@ -100,9 +102,9 @@ class VCloudClient(object):
 
     @RetryDecorator(max_retry_count=10,
                     exceptions=exception.NovaException)
-    def power_off_vapp(self, vapp_name):
+    def power_off(self, instance, name):
         expected_vapp_status = 8
-        the_vapp = self._get_vcloud_vapp(vapp_name)
+        the_vapp = self._get_vcloud_vapp(name)
         vapp_status = self._get_status_first_vm(the_vapp)
         if vapp_status == expected_vapp_status:
             return the_vapp
@@ -116,10 +118,10 @@ class VCloudClient(object):
         retry_times = 60
         while vapp_status != expected_vapp_status and retry_times > 0:
             time.sleep(3)
-            the_vapp = self._get_vcloud_vapp(vapp_name)
+            the_vapp = self._get_vcloud_vapp(name)
             vapp_status = self._get_status_first_vm(the_vapp)
             LOG.debug('During power off vapp_name: %s, %s' %
-                      (vapp_name, vapp_status))
+                      (name, vapp_status))
             retry_times -= 1
         return the_vapp
 
@@ -134,8 +136,8 @@ class VCloudClient(object):
         
     @RetryDecorator(max_retry_count=10,
                     exceptions=exception.NovaException)
-    def power_on_vapp(self, vapp_name):
-        the_vapp = self._get_vcloud_vapp(vapp_name)
+    def power_on(self, instance, name):
+        the_vapp = self._get_vcloud_vapp(name)
 
         vapp_status = self._get_status_first_vm(the_vapp)
         expected_vapp_status = 4
@@ -151,23 +153,23 @@ class VCloudClient(object):
         retry_times = 60
         while vapp_status != expected_vapp_status and retry_times > 0:
             time.sleep(3)
-            the_vapp = self._get_vcloud_vapp(vapp_name)
+            the_vapp = self._get_vcloud_vapp(name)
             vapp_status = self._get_status_first_vm(the_vapp)
             LOG.debug('During power on vapp_name: %s, %s' %
-                      (vapp_name, vapp_status))
+                      (name, vapp_status))
             retry_times -= 1
         return the_vapp
 
-    def delete_vapp(self, vapp_name):
-        the_vapp = self._get_vcloud_vapp(vapp_name)
+    def delete(self, instance, name):
+        the_vapp = self._get_vcloud_vapp(name)
         task = self._invoke_vapp_api(the_vapp, "delete")
         if not task:
             raise exception.NovaException(
                 "delete vapp failed, task: %s" % task)
         self._session.wait_for_task(task)
 
-    def reboot_vapp(self, vapp_name):
-        the_vapp = self._get_vcloud_vapp(vapp_name)
+    def reboot(self, instance, name):
+        the_vapp = self._get_vcloud_vapp(name)
         task = self._invoke_vapp_api(the_vapp, "reboot")
         if not task:
             raise exception.NovaException(
@@ -246,12 +248,12 @@ class VCloudClient(object):
             self._session.wait_for_task(task)
             return True
 
-    def upload_vm(self, ovf_name, vapp_name, api_net, tun_net):
+    def upload_vm(self, ovf_name, vapp_name, mgnt_net, data_net):
         cmd = ('ovftool --net:"vmnetwork-0=%s"'
                ' --net:"vmnetwork-1=%s"'
                ' %s "vcloud://%s:%s@%s?org=%s&vdc=%s&vapp=%s"' %
-               (api_net,
-                tun_net,
+               (mgnt_net,
+                data_net,
                 ovf_name,
                 self.username,
                 self.password,

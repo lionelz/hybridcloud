@@ -3,3 +3,4 @@
 # process, which may cause wedges in the gate later.
 
 pyvcloud=10
+apache-libcloud=0.19.0

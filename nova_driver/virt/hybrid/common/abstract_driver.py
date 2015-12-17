@@ -15,21 +15,74 @@
 """
 A Fake Nova Driver implementing all method with logs
 """
+import os
+import shutil
+import subprocess
 
+
+from nova import image
+from nova.openstack.common import fileutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.virt import driver
+from nova.volume.cinder import API as cinder_api
 
+from nova_driver.virt.hybrid.common import common_tools
+from nova_driver.virt.hybrid.common import util
+from nova_driver.virt.hybrid.common import hybrid_task_states
+from nova_driver.virt.hybrid.common import hyper_agent_api
+
+from oslo.config import cfg
 
 LOG = logging.getLogger(__name__)
 
 
-class FakeNovaDriver(driver.ComputeDriver):
+IMAGE_API = image.API()
+
+
+hybrid_driver_opts = [
+    cfg.StrOpt('provider',
+               help='provider type (vcloud|aws)'),
+    cfg.IntOpt('api_retry_count',
+               default=2,
+               help='Api retry count for connection to the provider.'),
+    cfg.StrOpt('conversion_dir',
+               default='/convert_tmp',
+               help='the directory where images are converted in'),
+    cfg.StrOpt('volumes_dir',
+               default='/volumes_tmp',
+               help='the directory of volume files'),
+    cfg.StrOpt('vm_naming_rule',
+               default='openstack_vm_id',
+               help='the rule to name VMs in the provider, valid options:'
+               'openstack_vm_id, openstack_vm_name, cascaded_openstack_rule'),
+    cfg.StrOpt('provider_mgnt_network',
+               help='The network name/id of the management provider network.'),
+    cfg.StrOpt('provider_data_network',
+               help='The network name/id of the data provider network.'),
+]
+
+
+cfg.CONF.register_opts(hybrid_driver_opts, 'hybrid_driver')
+
+
+
+class AbstractHybridNovaDriver(driver.ComputeDriver):
     """The VCloud host connection object."""
 
     def __init__(self, virtapi):
+        super(AbstractHybridNovaDriver, self).__init__(virtapi)
         self.instances = {}
-        super(FakeNovaDriver, self).__init__(virtapi)
+        self.cinder_api = cinder_api()
+        self.conversion_dir = cfg.CONF.hybrid_driver.conversion_dir
+        if not os.path.exists(self.conversion_dir):
+            os.makedirs(self.conversion_dir)
+
+        self.volumes_dir = cfg.CONF.hybrid_driver.volumes_dir
+        if not os.path.exists(self.volumes_dir):
+            os.makedirs(self.volumes_dir)
+
+        self.hyper_agent_api = hyper_agent_api.HyperAgentAPI()
 
     def init_host(self, host):
         LOG.debug("init_host")
@@ -38,8 +91,141 @@ class FakeNovaDriver(driver.ComputeDriver):
         LOG.debug("list_instances")
         return self.instances.keys()
 
-    def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
+    def _get_image_uuid(self, image_meta):
+        if 'id' in image_meta:
+            # create from image
+            image_uuid = image_meta['id']
+        else:
+            # create from volume
+            image_uuid = image_meta['properties']['image_id']
+        return image_uuid
+
+    def _get_user_metadata(self, instance):
+        rabbit_host = cfg.CONF.rabbit_host
+        if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
+            rabbit_host =cfg.CONF.rabbit_hosts[0]
+        if ':' in rabbit_host:
+            rabbit_host = rabbit_host[0:rabbit_host.find(':')]
+        return {"rabbit_userid": cfg.CONF.rabbit_userid,
+                 "rabbit_password": cfg.CONF.rabbit_password,
+                 "rabbit_host": rabbit_host,
+                 "host": instance.uuid}
+        
+
+    def _get_conversion_dir(self, instance):
+        return '%s/%s' % (self.conversion_dir, instance.uuid)
+        
+    def _image_exists_in_provider(self, image_meta):
+        return False
+
+    def _update_vm_task_state(self, instance, task_state):
+        instance.task_state = task_state
+        instance.save()
+
+    def _download_image(self,
+                        context,
+                        instance,
+                        image_meta):
+        conversion_dir = self._get_conversion_dir(instance)
+        fileutils.ensure_tree(conversion_dir)
+        os.chdir(conversion_dir)
+        image_uuid = self._get_image_uuid(image_meta)
+
+        dest_file_name = self.conversion_dir + '/' + image_uuid
+        if not os.path.exists(dest_file_name):
+            orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
+            LOG.debug("Begin download image file %s " %(image_uuid))
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.DOWNLOADING)
+    
+            metadata = IMAGE_API.get(context, image_uuid)
+            file_size = int(metadata['size'])
+            read_iter = IMAGE_API.download(context, image_uuid)
+            glance_file_handle = util.GlanceFileRead(read_iter)
+    
+            orig_file_handle = fileutils.file_open(orig_file_name, "wb")
+    
+            util.start_transfer(context,
+                                glance_file_handle,
+                                file_size,
+                                write_file_handle=orig_file_handle,
+                                task_state=hybrid_task_states.DOWNLOADING,
+                                instance=instance)
+            # move to dest_file_name
+            shutil.move(orig_file_name, dest_file_name)
+
+    def _convert_to_vmdk(self,
+                         context,
+                         instance,
+                         image_meta):
+        image_uuid = self._get_image_uuid(image_meta)
+        conversion_dir = self._get_conversion_dir(instance)
+        converted_file_name = '%s/converted-file.vmdk' % conversion_dir
+        orig_file_name  = '%s/%s' % (self.conversion_dir, image_uuid)
+        image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
+
+        # check if the image or volume vmdk cached
+        if os.path.exists(image_vmdk_file_name):
+            # if image cached, link the image file to conversion dir
+            os.link(image_vmdk_file_name, converted_file_name)
+        else:
+            LOG.debug("Begin download image file %s " %(image_uuid))
+
+            metadata = IMAGE_API.get(context, image_uuid)
+
+            # convert to vmdk
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.CONVERTING)
+
+            common_tools.convert_vm(metadata['disk_format'],
+                                    orig_file_name,
+                                    'vmdk',
+                                    converted_file_name)
+
+            shutil.move(converted_file_name, image_vmdk_file_name)
+            os.link(image_vmdk_file_name, converted_file_name)
+
+    def _convert_vmdk_to_ovf(self, instance, vmx_name):
+        conversion_dir = self._get_conversion_dir(instance)
+        vm_task_state = instance.task_state
+        self._update_vm_task_state(
+            instance,
+            task_state=hybrid_task_states.PACKING)
+
+        vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
+        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, vmx_name)
+        vmx_full_name = '%s/%s' % (conversion_dir, vmx_name)
+        
+        LOG.debug("copy vmx_cache file %s to vmx_full_name %s" % (
+            vmx_cache_full_name, vmx_full_name))
+        shutil.copy2(vmx_cache_full_name, vmx_full_name)
+        
+        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s" % (
+            vmx_cache_full_name, vmx_full_name))
+
+        ovf_name = '%s/%s.ovf' % (conversion_dir, instance.uuid)
+
+        mk_ovf_cmd = 'ovftool -o %s %s' % (vmx_full_name, ovf_name)
+
+        LOG.debug("begin run command %s" % mk_ovf_cmd)
+        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True) 
+        LOG.debug("end run command %s" % mk_ovf_cmd)
+
+        if mk_ovf_result != 0:
+            LOG.error('make ovf failed!')
+            self._update_vm_task_state(instance, task_state=vm_task_state)
+        return ovf_name
+
+    def spawn(self,
+              context,
+              instance,
+              image_meta,
+              injected_files,
+              admin_password,
+              network_info=None,
+              block_device_info=None):
         LOG.debug("spawn")
 
     def snapshot(self, context, instance, image_id, update_task_state):
@@ -47,7 +233,13 @@ class FakeNovaDriver(driver.ComputeDriver):
 
     def reboot(self, context, instance, network_info, reboot_type,
                block_device_info=None, bad_volumes_callback=None):
-        LOG.debug("reboot")
+        LOG.debug('begin reboot instance: %s' % instance.uuid)
+        name = self._get_vm_name(instance)
+        try:
+            self._provider_client.reboot(name)
+        except Exception as e:
+            LOG.error('reboot instance %s failed, %s' % (name, e))
+
 
     def set_admin_password(self, instance, new_pass):
         LOG.debug("set_admin_password")
@@ -86,10 +278,17 @@ class FakeNovaDriver(driver.ComputeDriver):
         LOG.debug("post_live_migration_at_destination")
 
     def power_off(self, instance, shutdown_timeout=0, shutdown_attempts=0):
-        LOG.debug("power_off")
+        LOG.debug('begin reboot instance: %s' % instance.uuid)
+        name = self._get_vm_name(instance)
+        try:
+            self._provider_client.power_off(instance, name)
+        except Exception as e:
+            LOG.error('power off failed, %s' % e)
 
     def power_on(self, context, instance, network_info, block_device_info):
-        LOG.debug("power_on")
+        name = self._get_vm_name(instance)
+        self._provider_client.power_on(instance, name)
+
 
     def soft_delete(self, instance):
         LOG.debug("soft_delete")
@@ -294,3 +493,15 @@ class FakeNovaDriver(driver.ComputeDriver):
 
     def unplug_vifs(self, instance, network_info):
         LOG.debug("unplug_vifs")
+
+    def _get_vm_name(self, instance):
+        vm_naming_rule = cfg.CONF.hybrid_driver.vm_naming_rule
+        if vm_naming_rule == 'openstack_vm_id':
+            return instance.uuid
+        elif vm_naming_rule == 'openstack_vm_name':
+            return instance.display_name
+        elif vm_naming_rule == 'cascaded_openstack_rule':
+            return instance.display_name
+        else:
+            return instance.uuid
+
