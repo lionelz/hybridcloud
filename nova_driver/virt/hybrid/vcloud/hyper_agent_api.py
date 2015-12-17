@@ -84,6 +84,9 @@ class HyperAgentAPI(object):
         self.call_back = HyperAgentCallback()
         super(HyperAgentAPI, self).__init__()
 
+    def choose_hn(self):
+        pass
+
     def plug(self, instance_id, hyper_vif, provider_vif):
         """
         waits for the Hyper Agent to be ready and connects the instance

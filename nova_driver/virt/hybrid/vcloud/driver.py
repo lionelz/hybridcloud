@@ -182,11 +182,16 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
         fileutils.ensure_tree(this_conversion_dir)
         os.chdir(this_conversion_dir)
         #0: create metadata iso and upload to vcloud
+        rabbit_host = CONF.rabbit_host
+        if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
+            rabbit_host = CONF.rabbit_hosts[0]
+        if ':' in rabbit_host:
+            rabbit_host = rabbit_host[0:rabbit_host.find(':')]
         iso_file = common_tools.create_user_data_iso(
             "userdata.iso",
             {"rabbit_userid": CONF.rabbit_userid,
              "rabbit_password": CONF.rabbit_password,
-             "rabbit_host": CONF.rabbit_hosts[0],
+             "rabbit_host": rabbit_host,
              "host": instance.uuid},
             this_conversion_dir)
         vapp_name = self._get_vcloud_vapp_name(instance)

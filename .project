@@ -3,7 +3,7 @@
 	<name>hybridcloud</name>
 	<comment></comment>
 	<projects>
-		<project>hypervm-nova</project>
+		<project>nova-juno</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
