@@ -26,92 +26,18 @@ from oslo.config import cfg
 from oslo.vmware import api
 from oslo.vmware import vim
 
+from nova import image
 from nova.compute import power_state
 from nova.compute import task_states
-from nova import image
 from nova.openstack.common import log as logging
-from nova.openstack.common import fileutils as fileutils
+from nova.openstack.common import fileutils
 from nova.virt import driver
-from nova_driver.virt.hybrid.common import fake_driver
+from nova_driver.virt.hybrid.common import abstract_driver
 from nova_driver.virt.hybrid.common import common_tools
-from nova_driver.virt.hybrid.vcloud import hyper_agent_api
 from nova_driver.virt.hybrid.vcloud import util
 from nova_driver.virt.hybrid.vcloud import vcloud_task_states
 from nova_driver.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
 from nova_driver.virt.hybrid.vcloud.vcloud_client import VCloudClient
-from nova.volume.cinder import API as cinder_api
-
-vcloudapi_opts = [
-
-    cfg.StrOpt('vcloud_node_name',
-               default='vcloud_node_01',
-               help='node name, which a node is a vcloud vcd'
-               'host.'),
-    cfg.StrOpt('vcloud_host_ip',
-               help='Hostname or IP address for connection to VMware VCD '
-               'host.'),
-    cfg.IntOpt('vcloud_host_port',
-               default=443,
-               help='Host port for cnnection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_host_username',
-               help='Host username for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_host_password',
-               help='Host password for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_org',
-               help='User org for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_vdc',
-               help='Vdc for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_version',
-               default='5.5',
-               help='Version for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_service',
-               default='85-719',
-               help='Service for connection to VMware VCD '
-               'host.'),
-    cfg.BoolOpt('vcloud_verify',
-                default=False,
-                help='Verify for connection to VMware VCD '
-                'host.'),
-    cfg.StrOpt('vcloud_service_type',
-               default='vcd',
-               help='Service type for connection to VMware VCD '
-               'host.'),
-    cfg.IntOpt('vcloud_api_retry_count',
-               default=2,
-               help='Api retry count for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_conversion_dir',
-               default='/vcloud/convert_tmp',
-               help='the directory where images are converted in '),
-    cfg.StrOpt('vcloud_volumes_dir',
-               default='/vcloud/volumes',
-               help='the directory of volume files'),
-    cfg.StrOpt('vcloud_vm_naming_rule',
-               default='openstack_vm_id',
-               help='the rule to name vcloud VMs, valid options:'
-               'openstack_vm_id, openstack_vm_name, cascaded_openstack_rule'),
-    cfg.DictOpt('vcloud_flavor_map',
-                default={
-                    'm1.tiny': '1',
-                    'm1.small': '2',
-                    'm1.medium': '3',
-                    'm1.large': '4',
-                    'm1.xlarge': '5'},
-                help='map nova flavor name to vcloud vm specification id'),
-    cfg.StrOpt('metadata_iso_catalog',
-               default='metadata-isos',
-               help='The metadata iso cotalog.'),
-    cfg.StrOpt('provider_api_network_name',
-               help='The provider network name which api provider network use.'),
-    cfg.StrOpt('provider_tunnel_network_name',
-               help='The provider network name which tunnel provider network use.'),
-]
 
 status_dict_vapp_to_instance = {
     VCLOUD_STATUS.FAILED_CREATION: power_state.CRASHED,
@@ -138,63 +64,60 @@ status_dict_vapp_to_instance = {
 }
 
 
-CONF = cfg.CONF
-CONF.register_opts(vcloudapi_opts, 'vcloud')
-
-
 LOG = logging.getLogger(__name__)
 
 
 IMAGE_API = image.API()
 
 
-class VCloudDriver(fake_driver.FakeNovaDriver):
+class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
     """The VCloud host connection object."""
 
     def __init__(self, virtapi, scheme="https"):
-        self._node_name = CONF.vcloud.vcloud_node_name
+        self._node_name = cfg.CONF.hyper_driver.vcloud_node_name
         self._vcloud_client = VCloudClient(scheme=scheme)
-        self.cinder_api = cinder_api()
 
-        if not os.path.exists(CONF.vcloud.vcloud_conversion_dir):
-            os.makedirs(CONF.vcloud.vcloud_conversion_dir)
-
-        if not os.path.exists(CONF.vcloud.vcloud_volumes_dir):
-            os.makedirs(CONF.vcloud.vcloud_volumes_dir)
-
-        self.hyper_agent_api = hyper_agent_api.HyperAgentAPI()
         super(VCloudDriver, self).__init__(virtapi)
 
     def _update_vm_task_state(self, instance, task_state):
         instance.task_state = task_state
         instance.save()
 
-    def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
+    def spawn(self,
+              context,
+              instance,
+              image_meta,
+              injected_files,
+              admin_password,
+              network_info=None,
+              block_device_info=None):
         LOG.info('begin time of vcloud create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
-        image_cache_dir = CONF.vcloud.vcloud_conversion_dir
-        volume_cache_dir = CONF.vcloud.vcloud_volumes_dir
+        conversion_dir = super(VCloudDriver, self).spawn(
+            context,
+            instance,
+            image_meta,
+            injected_files,
+            admin_password,
+            network_info,
+            block_device_info
+        )
 
-        this_conversion_dir = '%s/%s' % (CONF.vcloud.vcloud_conversion_dir, 
-                                         instance.uuid)
-        fileutils.ensure_tree(this_conversion_dir)
-        os.chdir(this_conversion_dir)
         #0: create metadata iso and upload to vcloud
-        rabbit_host = CONF.rabbit_host
+        rabbit_host = cfg.CONF.rabbit_host
         if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
-            rabbit_host = CONF.rabbit_hosts[0]
+            rabbit_host =cfg.CONF.rabbit_hosts[0]
         if ':' in rabbit_host:
             rabbit_host = rabbit_host[0:rabbit_host.find(':')]
         iso_file = common_tools.create_user_data_iso(
             "userdata.iso",
-            {"rabbit_userid": CONF.rabbit_userid,
-             "rabbit_password": CONF.rabbit_password,
+            {"rabbit_userid": cfg.CONF.rabbit_userid,
+             "rabbit_password": cfg.CONF.rabbit_password,
              "rabbit_host": rabbit_host,
              "host": instance.uuid},
-            this_conversion_dir)
-        vapp_name = self._get_vcloud_vapp_name(instance)
+            conversion_dir)
+        vapp_name = self._get_vm_name(instance)
         metadata_iso = self._vcloud_client.upload_metadata_iso(iso_file,
                                                                vapp_name)
 
@@ -211,25 +134,22 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
             image_uuid = image_meta['properties']['image_id']
 
         vm_flavor_name = instance.get_flavor().name
-        vcloud_flavor_id = CONF.vcloud.vcloud_flavor_map[vm_flavor_name]
+        vcloud_flavor_id = cfg.CONF.hyper_driver.vcloud_flavor_map[vm_flavor_name]
         vm_task_state = instance.task_state
 
         # 2~3 get vmdk file. check if the image or volume vmdk file cached first
-        converted_file_name = this_conversion_dir + \
-            '/converted-file.vmdk'
+        converted_file_name = conversion_dir + '/converted-file.vmdk'
 
         block_device_mapping = driver.block_device_info_get_mapping(
             block_device_info)
 
-        image_vmdk_file_name = '%s/%s.vmdk' % (
-            image_cache_dir, image_uuid)
+        image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
 
         volume_file_name = ''
         if len(block_device_mapping) > 0:
             volume_id = block_device_mapping[0][
                 'connection_info']['data']['volume_id']
-            volume_file_name = '%s/%s.vmdk' % (
-                volume_cache_dir, volume_id)
+            volume_file_name = '%s/%s.vmdk' % (self.volumes_dir, volume_id)
 
         # 2.1 check if the image or volume vmdk file cached
         if os.path.exists(volume_file_name):
@@ -256,7 +176,7 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
             read_iter = IMAGE_API.download(context, image_uuid)
             glance_file_handle = util.GlanceFileRead(read_iter)
 
-            orig_file_name = this_conversion_dir + \
+            orig_file_name = conversion_dir + \
                 '/' + image_uuid + '.tmp'
             orig_file_handle = fileutils.file_open(orig_file_name, "wb")
 
@@ -286,10 +206,10 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
             instance,
             task_state=vcloud_task_states.PACKING)
 
-        vmx_file_dir = '%s/%s' % (CONF.vcloud.vcloud_conversion_dir,'vmx')
+        vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
         vmx_name = 'base-%s.vmx' % vcloud_flavor_id
         vmx_cache_full_name = '%s/%s' % (vmx_file_dir, vmx_name)
-        vmx_full_name = '%s/%s' % (this_conversion_dir, vmx_name)
+        vmx_full_name = '%s/%s' % (conversion_dir, vmx_name)
         
         LOG.debug("copy vmx_cache file %s to vmx_full_name %s " \
                        %(vmx_cache_full_name,vmx_full_name))
@@ -298,7 +218,7 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
         LOG.debug("end copy vmx_cache file %s to vmx_full_name %s " \
                        %(vmx_cache_full_name,vmx_full_name))
 
-        ovf_name = '%s/%s.ovf' % (this_conversion_dir, instance.uuid)
+        ovf_name = '%s/%s.ovf' % (conversion_dir, instance.uuid)
 
         mk_ovf_cmd = 'ovftool -o %s %s' % \
                      (vmx_full_name, ovf_name)
@@ -319,8 +239,8 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
         self._vcloud_client.upload_vm(
             ovf_name,
             vapp_name,
-            CONF.vcloud.provider_tunnel_network_name,
-            CONF.vcloud.provider_api_network_name)
+            cfg.CONF.hyper_driver.provider_tunnel_network,
+            cfg.CONF.hyper_driver.provider_api_network)
 
         self._update_vm_task_state(
             instance,
@@ -350,19 +270,9 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
 
         # 7. clean up
         self._update_vm_task_state(instance, task_state=vm_task_state)
-        shutil.rmtree(this_conversion_dir, ignore_errors=True)
+        shutil.rmtree(conversion_dir, ignore_errors=True)
         LOG.info('end time of vcloud create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-
-    def _get_vcloud_vapp_name(self, instance):
-        if CONF.vcloud.vcloud_vm_naming_rule == 'openstack_vm_id':
-            return instance.uuid
-        elif CONF.vcloud.vcloud_vm_naming_rule == 'openstack_vm_name':
-            return instance.display_name
-        elif CONF.vcloud.vcloud_vm_naming_rule == 'cascaded_openstack_rule':
-            return instance.display_name
-        else:
-            return instance.uuid
 
     def _download_vmdk_from_vcloud(self, context, src_url, dst_file_name):
 
@@ -407,11 +317,12 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
 
         update_task_state(task_state=task_states.IMAGE_PENDING_UPLOAD)
         # 1. get vmdk url
-        vapp_name = self._get_vcloud_vapp_name(instance)
+        vapp_name = self._get_vm_name(instance)
         remote_vmdk_url = self._vcloud_client.query_vmdk_url(vapp_name)
 
         # 2. download vmdk
-        temp_dir = '%s/%s' % (CONF.vcloud.vcloud_conversion_dir, instance.uuid)
+        temp_dir = '%s/%s' % (cfg.CONF.hyper_driver.conversion_dir,
+                              instance.uuid)
         fileutils.ensure_tree(temp_dir)
 
         vmdk_name = remote_vmdk_url.split('/')[-1]
@@ -452,7 +363,7 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
                block_device_info=None, bad_volumes_callback=None):
         LOG.debug('[vcloud nova driver] begin reboot instance: %s' %
                   instance.uuid)
-        vapp_name = self._get_vcloud_vapp_name(instance)
+        vapp_name = self._get_vm_name(instance)
 
         try:
             self._vcloud_client.reboot_vapp(vapp_name)
@@ -462,20 +373,20 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
     def power_off(self, instance, shutdown_timeout=0, shutdown_attempts=0):
         LOG.debug('[vcloud nova driver] begin reboot instance: %s' %
                   instance.uuid)
-        vapp_name = self._get_vcloud_vapp_name(instance)
+        vapp_name = self._get_vm_name(instance)
         try:
             self._vcloud_client.power_off_vapp(vapp_name)
         except Exception as e:
             LOG.error('power off failed, %s' % e)
 
     def power_on(self, context, instance, network_info, block_device_info):
-        vapp_name = self._get_vcloud_vapp_name(instance)
+        vapp_name = self._get_vm_name(instance)
         self._vcloud_client.power_on_vapp(vapp_name)
 
     def _do_destroy_vm(self, context, instance, network_info, block_device_info=None,
                        destroy_disks=True, migrate_data=None):
 
-        vapp_name = self._get_vcloud_vapp_name(instance)
+        vapp_name = self._get_vm_name(instance)
         try:
             self._vcloud_client.power_off_vapp(vapp_name)
         except Exception as e:
@@ -518,7 +429,7 @@ class VCloudDriver(fake_driver.FakeNovaDriver):
     def get_info(self, instance):
         state = power_state.NOSTATE
         try:
-            vapp_name = self._get_vcloud_vapp_name(instance)
+            vapp_name = self._get_vm_name(instance)
             vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
             state = status_dict_vapp_to_instance.get(vapp_status)
         except Exception as e:

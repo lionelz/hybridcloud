@@ -15,21 +15,124 @@
 """
 A Fake Nova Driver implementing all method with logs
 """
+import os
 
+from nova.openstack.common import fileutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.virt import driver
+from nova.volume.cinder import API as cinder_api
 
+from nova_driver.virt.hybrid.vcloud import hyper_agent_api
+
+from oslo.config import cfg
 
 LOG = logging.getLogger(__name__)
 
 
-class FakeNovaDriver(driver.ComputeDriver):
+hyper_driver_opts = [
+# common
+    cfg.StrOpt('provider',
+               help='provider type (vcloud|aws)'),
+    cfg.IntOpt('api_retry_count',
+               default=2,
+               help='Api retry count for connection to the provider.'),
+    cfg.StrOpt('conversion_dir',
+               default='/convert_tmp',
+               help='the directory where images are converted in'),
+    cfg.StrOpt('volumes_dir',
+               default='/volumes_tmp',
+               help='the directory of volume files'),
+    cfg.StrOpt('vm_naming_rule',
+               default='openstack_vm_id',
+               help='the rule to name VMs in the provider, valid options:'
+               'openstack_vm_id, openstack_vm_name, cascaded_openstack_rule'),
+    cfg.StrOpt('provider_api_network',
+               help='The network name/id of the api provider network.'),
+    cfg.StrOpt('provider_tunnel_network',
+               help='The network name/id of the tunnel provider network.'),
+
+# aws specifics
+    cfg.StrOpt('aws_access_key_id',
+               help='the access key id for connection to aws'),
+    cfg.StrOpt('aws_secret_access_key',
+               help='the secret key  for connection to EC2'),
+    cfg.StrOpt('aws_region_name',
+               default='us-east-1',
+               help='the region for connection to EC2'),
+    cfg.StrOpt('aws_base_linux_image',
+               default='ami-68d8e93a',
+               help='use for create a base ec2 instance'),
+    cfg.DictOpt('aws_flavor_map',
+                default={'m1.tiny': 't2.micro',
+                         'm1.small': 't2.micro',
+                         'm1.medium': 't2.micro3',
+                         'm1.large': 't2.micro',
+                         'm1.xlarge': 't2.micro'},
+                help='nova flavor name to aws ec2 instance type mapping'),
+
+# vcloud specifics
+    cfg.StrOpt('vcloud_node_name',
+               default='vcloud_node_01',
+               help='node name, which a node is a vcloud vcd'
+               'host.'),
+    cfg.StrOpt('vcloud_host_ip',
+               help='Hostname or IP address for connection to VMware VCD '
+               'host.'),
+    cfg.IntOpt('vcloud_host_port',
+               default=443,
+               help='Host port for cnnection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vcloud_host_username',
+               help='Host username for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vcloud_host_password',
+               help='Host password for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vcloud_org',
+               help='User org for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vcloud_vdc',
+               help='Vdc for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vcloud_version',
+               default='5.5',
+               help='Version for connection to VMware VCD '
+               'host.'),
+    cfg.DictOpt('vcloud_flavor_map',
+                default={
+                    'm1.tiny': '1',
+                    'm1.small': '2',
+                    'm1.medium': '3',
+                    'm1.large': '4',
+                    'm1.xlarge': '5'},
+                help='map nova flavor name to vcloud vm specification id'),
+    cfg.StrOpt('vcloud_metadata_iso_catalog',
+               default='metadata-isos',
+               help='The metadata iso cotalog.'),
+]
+
+
+cfg.CONF.register_opts(hyper_driver_opts, 'hyper_driver')
+
+
+
+class AbstractHybridNovaDriver(driver.ComputeDriver):
     """The VCloud host connection object."""
 
     def __init__(self, virtapi):
+        super(AbstractHybridNovaDriver, self).__init__(virtapi)
         self.instances = {}
-        super(FakeNovaDriver, self).__init__(virtapi)
+        self.cinder_api = cinder_api()
+        self.conversion_dir = cfg.CONF.hyper_driver.conversion_dir
+        if not os.path.exists():
+            os.makedirs(self.conversion_dir)
+
+        self.volumes_dir = cfg.CONF.hyper_driver.volumes_dir
+        if not os.path.exists(self.volumes_dir):
+            os.makedirs(self.volumes_dir)
+
+        self.hyper_agent_api = hyper_agent_api.HyperAgentAPI()
 
     def init_host(self, host):
         LOG.debug("init_host")
@@ -38,9 +141,18 @@ class FakeNovaDriver(driver.ComputeDriver):
         LOG.debug("list_instances")
         return self.instances.keys()
 
-    def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
-        LOG.debug("spawn")
+    def spawn(self,
+              context,
+              instance,
+              image_meta,
+              injected_files,
+              admin_password,
+              network_info=None,
+              block_device_info=None):
+        conversion_dir = '%s/%s' % (self.conversion_dir, instance.uuid)
+        fileutils.ensure_tree(conversion_dir)
+        os.chdir(conversion_dir)
+        return conversion_dir
 
     def snapshot(self, context, instance, image_id, update_task_state):
         LOG.debug("snapshot")
@@ -294,3 +406,15 @@ class FakeNovaDriver(driver.ComputeDriver):
 
     def unplug_vifs(self, instance, network_info):
         LOG.debug("unplug_vifs")
+
+    def _get_vm_name(self, instance):
+        vm_naming_rule = cfg.CONF.hyper_driver.vm_naming_rule
+        if vm_naming_rule == 'openstack_vm_id':
+            return instance.uuid
+        elif vm_naming_rule == 'openstack_vm_name':
+            return instance.display_name
+        elif vm_naming_rule == 'cascaded_openstack_rule':
+            return instance.display_name
+        else:
+            return instance.uuid
+
