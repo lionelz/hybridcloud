@@ -5,25 +5,32 @@
 - Based on ubuntu server 14.04 installation
 - get devstack, juno version (eol)
 ```
-    git clone https://github.com/openstack-dev/devstack.git
-    cd devstack
-    git checkout juno-eol
+git clone https://github.com/openstack-dev/devstack.git
+cd devstack
+git checkout juno-eol
 ```
 - get hybroudcloud code
 ```
-    cd /opt/stack
-    git clone https://github.com/lionelz/hybridcloud.git
+cd /opt/stack
+git clone https://github.com/lionelz/hybridcloud.git
 ```
-- copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
-- Install pyvcloud version 10
+- Install pyvcloud version 10 
+     - must be run before the stack script
+     - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
-    sudo pip install pyvcloud==10
+sudo pip install pyvcloud==10
 ```
-- install ovftool
+- install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
+- Add in the PYTHONPATH the folder /opt/stack/hybridcloud
+```
+Add in the file ~/.bashrc add at the end:
+export PYTHONPATH=/opt/stack/hybridcloud
+```
 - local.conf configuration sample
 ```
 [[local|localrc]]
 HOST_IP=##your data interface host ip##
+LOGFILE=$DEST/logs/stack.sh.log
 
 ADMIN_PASSWORD=stack
 DATABASE_PASSWORD=$ADMIN_PASSWORD
@@ -82,36 +89,53 @@ vcloud_node_name = ##node description name##
 provider_api_network_name = api-network
 provider_tunnel_network_name = data-network
 ```
- 
+- copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
+```
+mkdir /opt/stack/data/hybridcloud
+mkdir /opt/stack/data/hybridcloud/vmx
+copy /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridcloud/vmx 
+```
+- TROUBLESHOOTING: olso.utils package version must be 1.4.1
+```
+sudo pip unsinstall olso.utils
+sudo pip install olso.utils==1.4.1
+``` 
+
 ## Agent VM creation
 - Based on ubuntu 14.04
 - Edit the /etc/sysctl.conf file to contain the following parameters:
 ```
-    net.ipv4.conf.all.rp_filter=0
-    net.ipv4.conf.default.rp_filter=0
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
 ```
 - Implement the changes:
 ```
-    sudo sysctl -p
+sudo sysctl -p
 ```
 - add juno openstack repository
 ```
-    sudo add-apt-repository cloud-archive:juno
+sudo add-apt-repository cloud-archive:juno
 ```
 - install neutron agent
 ```
-    sudo apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
+sudo apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
 ```
 - install nova code
 ```
-    sudo apt-get --no-install-recommends -y install python-nova
+sudo apt-get --no-install-recommends -y install python-nova
 ```
 - Hybrid code and install
 ```
-    sudo apt-get install git
-    git clone https://github.com/lionelz/hybridcloud.git
-    cd hybridcloud/bin
-    sudo ./install_hypervm.sh
+sudo apt-get install git
+git clone https://github.com/lionelz/hybridcloud.git
+cd hybridcloud/bin
+sudo ./install_hypervm.sh
+```
+- Add the cdrom automount in the file /etc/fstab
+```
+Add this line at the end of /etc/fstab
+/dev/sr0     /media/metadata    iso9660   user,exec,utf8   0   0 
+
 ```
 
 ## TODO: Devstack all-in-one installation with AWS nova driver
