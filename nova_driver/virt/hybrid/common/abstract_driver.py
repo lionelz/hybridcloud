@@ -16,18 +16,27 @@
 A Fake Nova Driver implementing all method with logs
 """
 import os
+import shutil
 
+
+from nova import image
 from nova.openstack.common import fileutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.virt import driver
 from nova.volume.cinder import API as cinder_api
 
+from nova_driver.virt.hybrid.common import common_tools
+from nova_driver.virt.hybrid.common import util
+from nova_driver.virt.hybrid.common import task_states
 from nova_driver.virt.hybrid.vcloud import hyper_agent_api
 
 from oslo.config import cfg
 
 LOG = logging.getLogger(__name__)
+
+
+IMAGE_API = image.API()
 
 
 hyper_driver_opts = [
@@ -141,6 +150,9 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug("list_instances")
         return self.instances.keys()
 
+    def _image_exists_in_provider(self):
+        return False
+
     def spawn(self,
               context,
               instance,
@@ -152,6 +164,77 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         conversion_dir = '%s/%s' % (self.conversion_dir, instance.uuid)
         fileutils.ensure_tree(conversion_dir)
         os.chdir(conversion_dir)
+
+        if 'id' in image_meta:
+            # create from image
+            image_uuid = image_meta['id']
+        else:
+            # create from volume
+            image_uuid = image_meta['properties']['image_id']
+
+        if not self._image_exists_in_provider():
+            converted_file_name = conversion_dir + '/converted-file.vmdk'
+
+            block_device_mapping = driver.block_device_info_get_mapping(
+                block_device_info)
+
+            image_vmdk_file_name = '%s/%s.vmdk' % (
+                self.conversion_dir,
+                image_uuid)
+
+            volume_file_name = ''
+            if len(block_device_mapping) > 0:
+                volume_id = block_device_mapping[0][
+                    'connection_info']['data']['volume_id']
+                volume_file_name = '%s/%s.vmdk' % (
+                    self.volumes_dir, volume_id)
+
+            # check if the image or volume vmdk cached
+            if os.path.exists(volume_file_name):
+                # if volume cached, move the volume file to conversion dir
+                shutil.move(volume_file_name, converted_file_name)
+            elif os.path.exists(image_vmdk_file_name):
+                LOG.debug("Image file exists, copy %s to converted_file %s " % (
+                    image_vmdk_file_name, converted_file_name))
+                # if image cached, copy ghe image file to conversion dir
+                shutil.copy2(image_vmdk_file_name, converted_file_name)
+                LOG.debug("End copy image file %s to converted_file %s "  % (
+                    image_vmdk_file_name, converted_file_name))
+            else:
+                LOG.debug("Begin download image file %s " %(image_uuid))
+                self._update_vm_task_state(
+                    instance,
+                    task_state=task_states.DOWNLOADING)
+
+                metadata = IMAGE_API.get(context, image_uuid)
+                file_size = int(metadata['size'])
+                read_iter = IMAGE_API.download(context, image_uuid)
+                glance_file_handle = util.GlanceFileRead(read_iter)
+
+                orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
+                orig_file_handle = fileutils.file_open(orig_file_name, "wb")
+
+                util.start_transfer(context,
+                                    glance_file_handle,
+                                    file_size,
+                                    write_file_handle=orig_file_handle,
+                                    task_state=task_states.DOWNLOADING,
+                                    instance=instance)
+
+                # convert to vmdk
+                self._update_vm_task_state(
+                    instance,
+                    task_state=task_states.CONVERTING)
+
+                common_tools.convert_vm(metadata["disk_format"],
+                                    orig_file_name,
+                                    'vmdk',
+                                    converted_file_name)
+
+                LOG.debug("Copy image file %s to converted_file %s " %(
+                    image_vmdk_file_name, converted_file_name))
+                shutil.copy2(converted_file_name,image_vmdk_file_name)
+
         return conversion_dir
 
     def snapshot(self, context, instance, image_id, update_task_state):

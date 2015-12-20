@@ -34,8 +34,8 @@ from nova.openstack.common import fileutils
 from nova.virt import driver
 from nova_driver.virt.hybrid.common import abstract_driver
 from nova_driver.virt.hybrid.common import common_tools
-from nova_driver.virt.hybrid.vcloud import util
-from nova_driver.virt.hybrid.vcloud import vcloud_task_states
+from nova_driver.virt.hybrid.common import hybrid_task_states
+from nova_driver.virt.hybrid.common import util
 from nova_driver.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
 from nova_driver.virt.hybrid.vcloud.vcloud_client import VCloudClient
 
@@ -82,7 +82,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
     def _update_vm_task_state(self, instance, task_state):
         instance.task_state = task_state
         instance.save()
-
+    
     def spawn(self,
               context,
               instance,
@@ -121,90 +121,14 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         metadata_iso = self._vcloud_client.upload_metadata_iso(iso_file,
                                                                vapp_name)
 
-        # 0.get vorg, user name,password vdc  from configuration file (only one
-        # org)
-
-        # 1.1 get image id, vm info ,flavor info
-        # image_uuid = instance.image_ref
-        if 'id' in image_meta:
-            # create from image
-            image_uuid = image_meta['id']
-        else:
-            # create from volume
-            image_uuid = image_meta['properties']['image_id']
-
         vm_flavor_name = instance.get_flavor().name
         vcloud_flavor_id = cfg.CONF.hyper_driver.vcloud_flavor_map[vm_flavor_name]
         vm_task_state = instance.task_state
 
-        # 2~3 get vmdk file. check if the image or volume vmdk file cached first
-        converted_file_name = conversion_dir + '/converted-file.vmdk'
-
-        block_device_mapping = driver.block_device_info_get_mapping(
-            block_device_info)
-
-        image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
-
-        volume_file_name = ''
-        if len(block_device_mapping) > 0:
-            volume_id = block_device_mapping[0][
-                'connection_info']['data']['volume_id']
-            volume_file_name = '%s/%s.vmdk' % (self.volumes_dir, volume_id)
-
-        # 2.1 check if the image or volume vmdk file cached
-        if os.path.exists(volume_file_name):
-            # if volume cached, move the volume file to conversion dir
-            shutil.move(volume_file_name, converted_file_name)
-        elif os.path.exists(image_vmdk_file_name):
-            LOG.debug("the image file exist,copy image file %s to converted_file %s " \
-                       %(image_vmdk_file_name,converted_file_name))
-            # if image cached, copy ghe image file to conversion dir
-            shutil.copy2(image_vmdk_file_name, converted_file_name)
-            LOG.debug("end copy image file %s to converted_file %s " \
-                       %(image_vmdk_file_name,converted_file_name))
-            
-        else:
-            LOG.debug("begin download image file %s " %(image_uuid))
-            # if NOT cached, download qcow2 file from glance to local, then convert it to vmdk
-            # tmp_dir = '/hctemp'
-            self._update_vm_task_state(
-                instance,
-                task_state=vcloud_task_states.DOWNLOADING)
-
-            metadata = IMAGE_API.get(context, image_uuid)
-            file_size = int(metadata['size'])
-            read_iter = IMAGE_API.download(context, image_uuid)
-            glance_file_handle = util.GlanceFileRead(read_iter)
-
-            orig_file_name = conversion_dir + \
-                '/' + image_uuid + '.tmp'
-            orig_file_handle = fileutils.file_open(orig_file_name, "wb")
-
-            util.start_transfer(context,
-                                glance_file_handle,
-                                file_size,
-                                write_file_handle=orig_file_handle,
-                                task_state=vcloud_task_states.DOWNLOADING,
-                                instance=instance)
-
-            # 2.2. convert to vmdk
-            self._update_vm_task_state(
-                instance,
-                task_state=vcloud_task_states.CONVERTING)
-
-            common_tools.convert_vm(metadata["disk_format"],
-                                    orig_file_name,
-                                    'vmdk',
-                                    converted_file_name)
-
-            LOG.debug("copy image file %s to converted_file %s " \
-                       %(image_vmdk_file_name,converted_file_name))
-            shutil.copy2(converted_file_name,image_vmdk_file_name)
-
-        # 3. vmdk to ovf
+        # vmdk to ovf
         self._update_vm_task_state(
             instance,
-            task_state=vcloud_task_states.PACKING)
+            task_state=hybrid_task_states.PACKING)
 
         vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
         vmx_name = 'base-%s.vmx' % vcloud_flavor_id
@@ -235,7 +159,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         # upload ovf to vcloud
         self._update_vm_task_state(
             instance,
-            task_state=vcloud_task_states.IMPORTING)
+            task_state=hybrid_task_states.IMPORTING)
         self._vcloud_client.upload_vm(
             ovf_name,
             vapp_name,
@@ -244,7 +168,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
         self._update_vm_task_state(
             instance,
-            task_state=vcloud_task_states.VM_CREATING)
+            task_state=hybrid_task_states.VM_CREATING)
         expected_vapp_status = VCLOUD_STATUS.POWERED_OFF
 
         vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
