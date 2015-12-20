@@ -14,16 +14,17 @@ git checkout juno-eol
 cd /opt/stack
 git clone https://github.com/lionelz/hybridcloud.git
 ```
-- Install pyvcloud version 10 (must be run before the stack script). If pip is not install, run the stack  
+- Install pyvcloud version 10 
+     - must be run before the stack script
+     - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
-    sudo pip install pyvcloud==10
+sudo pip install pyvcloud==10
 ```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
 - Add in the PYTHONPATH the folder /opt/stack/hybridcloud
 ```
-if file ~/.bashrc add at the end:
+Add in the file ~/.bashrc add at the end:
 export PYTHONPATH=/opt/stack/hybridcloud
-
 ```
 - local.conf configuration sample
 ```
@@ -98,7 +99,6 @@ copy /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridclo
 ```
 sudo pip unsinstall olso.utils
 sudo pip install olso.utils==1.4.1
- 
 ``` 
 
 ## Agent VM creation
