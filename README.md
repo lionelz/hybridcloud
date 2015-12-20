@@ -18,6 +18,7 @@ git clone https://github.com/lionelz/hybridcloud.git
      - must be run before the stack script
      - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
+sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev
 sudo pip install pyvcloud==10
 ```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
