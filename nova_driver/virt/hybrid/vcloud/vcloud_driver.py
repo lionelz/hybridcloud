@@ -31,13 +31,65 @@ from nova.compute import power_state
 from nova.compute import task_states
 from nova.openstack.common import log as logging
 from nova.openstack.common import fileutils
-from nova.virt import driver
 from nova_driver.virt.hybrid.common import abstract_driver
 from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import hybrid_task_states
 from nova_driver.virt.hybrid.common import util
 from nova_driver.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
 from nova_driver.virt.hybrid.vcloud.vcloud_client import VCloudClient
+
+vcloud_driver_opts = [
+    cfg.StrOpt('node_name',
+               default='node_01',
+               help='node name, which a node is a vcloud vcd'
+               'host.'),
+    cfg.StrOpt('host_ip',
+               help='Hostname or IP address for connection to VMware VCD '
+               'host.'),
+    cfg.IntOpt('host_port',
+               default=443,
+               help='Host port for cnnection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('host_username',
+               help='Host username for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('host_password',
+               help='Host password for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('org',
+               help='User org for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('vdc',
+               help='Vdc for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('version',
+               default='5.5',
+               help='Version for connection to VMware VCD '
+               'host.'),
+    cfg.DictOpt('flavor_map',
+                default={
+                    'm1.tiny': '1',
+                    'm1.small': '2',
+                    'm1.medium': '3',
+                    'm1.large': '4',
+                    'm1.xlarge': '5'},
+                help='map nova flavor name to vcloud vm specification id'),
+    cfg.BoolOpt('verify',
+                default=False,
+                help='Verify for connection to VMware VCD '
+                'host.'),
+    cfg.StrOpt('service_type',
+               default='vcd',
+               help='Service type for connection to VMware VCD '
+               'host.'),
+    cfg.StrOpt('metadata_iso_catalog',
+               default='metadata-isos',
+               help='The metadata iso cotalog.'),
+]
+
+
+cfg.CONF.register_opts(vcloud_driver_opts, 'vcloud')
+
 
 status_dict_vapp_to_instance = {
     VCLOUD_STATUS.FAILED_CREATION: power_state.CRASHED,
@@ -74,15 +126,11 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
     """The VCloud host connection object."""
 
     def __init__(self, virtapi, scheme="https"):
-        self._node_name = cfg.CONF.hybrid_driver.vcloud_node_name
-        self._vcloud_client = VCloudClient(scheme=scheme)
+        self._node_name = cfg.CONF.vcloud.node_name
+        self._provider_client = VCloudClient(scheme=scheme)
 
         super(VCloudDriver, self).__init__(virtapi)
 
-    def _update_vm_task_state(self, instance, task_state):
-        instance.task_state = task_state
-        instance.save()
-    
     def spawn(self,
               context,
               instance,
@@ -118,11 +166,11 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
              "host": instance.uuid},
             conversion_dir)
         vapp_name = self._get_vm_name(instance)
-        metadata_iso = self._vcloud_client.upload_metadata_iso(iso_file,
+        metadata_iso = self._provider_client.upload_metadata_iso(iso_file,
                                                                vapp_name)
 
         vm_flavor_name = instance.get_flavor().name
-        vcloud_flavor_id = cfg.CONF.hybrid_driver.vcloud_flavor_map[vm_flavor_name]
+        vcloud_flavor_id = cfg.CONF.vcloud.flavor_map[vm_flavor_name]
         vm_task_state = instance.task_state
 
         # vmdk to ovf
@@ -160,7 +208,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         self._update_vm_task_state(
             instance,
             task_state=hybrid_task_states.IMPORTING)
-        self._vcloud_client.upload_vm(
+        self._provider_client.upload_vm(
             ovf_name,
             vapp_name,
             cfg.CONF.hybrid_driver.provider_tunnel_network,
@@ -171,26 +219,26 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
             task_state=hybrid_task_states.VM_CREATING)
         expected_vapp_status = VCLOUD_STATUS.POWERED_OFF
 
-        vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
+        vapp_status = self._provider_client.get_vcloud_vapp_status(vapp_name)
         LOG.debug('vapp status: %s' % vapp_status)
         retry_times = 60
         while vapp_status != expected_vapp_status and retry_times > 0:
             time.sleep(3)
-            vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
+            vapp_status = self._provider_client.get_vcloud_vapp_status(vapp_name)
             LOG.debug('vapp status: %s' % vapp_status)
             retry_times = retry_times - 1
 
         # modified cpu
         if(instance.get_flavor().vcpus != 1):
-            if self._vcloud_client.modify_vm_cpu(vapp_name,
+            if self._provider_client.modify_vm_cpu(vapp_name,
                                                  instance.get_flavor().vcpus):
                 LOG.info("modified %s cpu success" % vapp_name)
 
         # mount it
-        self._vcloud_client.insert_media(vapp_name, metadata_iso)
+        self._provider_client.insert_media(vapp_name, metadata_iso)
 
         # power on it
-        self._vcloud_client.power_on_vapp(vapp_name)
+        self._provider_client.power_on(vapp_name)
 
         # 7. clean up
         self._update_vm_task_state(instance, task_state=vm_task_state)
@@ -242,7 +290,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         update_task_state(task_state=task_states.IMAGE_PENDING_UPLOAD)
         # 1. get vmdk url
         vapp_name = self._get_vm_name(instance)
-        remote_vmdk_url = self._vcloud_client.query_vmdk_url(vapp_name)
+        remote_vmdk_url = self._provider_client.query_vmdk_url(vapp_name)
 
         # 2. download vmdk
         temp_dir = '%s/%s' % (cfg.CONF.hybrid_driver.conversion_dir,
@@ -283,47 +331,23 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         # 5. delete temporary files
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def reboot(self, context, instance, network_info, reboot_type,
-               block_device_info=None, bad_volumes_callback=None):
-        LOG.debug('[vcloud nova driver] begin reboot instance: %s' %
-                  instance.uuid)
-        vapp_name = self._get_vm_name(instance)
-
-        try:
-            self._vcloud_client.reboot_vapp(vapp_name)
-        except Exception as e:
-            LOG.error('reboot instance %s failed, %s' % (vapp_name, e))
-
-    def power_off(self, instance, shutdown_timeout=0, shutdown_attempts=0):
-        LOG.debug('[vcloud nova driver] begin reboot instance: %s' %
-                  instance.uuid)
-        vapp_name = self._get_vm_name(instance)
-        try:
-            self._vcloud_client.power_off_vapp(vapp_name)
-        except Exception as e:
-            LOG.error('power off failed, %s' % e)
-
-    def power_on(self, context, instance, network_info, block_device_info):
-        vapp_name = self._get_vm_name(instance)
-        self._vcloud_client.power_on_vapp(vapp_name)
-
     def _do_destroy_vm(self, context, instance, network_info, block_device_info=None,
                        destroy_disks=True, migrate_data=None):
 
         vapp_name = self._get_vm_name(instance)
         try:
-            self._vcloud_client.power_off_vapp(vapp_name)
+            self._provider_client.power_off(vapp_name)
         except Exception as e:
             LOG.error('power off failed, %s' % e)
 
         vm_task_state = instance.task_state
         self._update_vm_task_state(instance, vm_task_state)
         try:
-            self._vcloud_client.delete_vapp(vapp_name)
+            self._provider_client.delete(vapp_name)
         except Exception as e:
             LOG.error('delete vapp failed %s' % e)
         try:
-            self._vcloud_client.delete_metadata_iso(vapp_name)
+            self._provider_client.delete_metadata_iso(vapp_name)
         except Exception as e:
             LOG.error('delete metadata iso failed %s' % e)
 
@@ -354,7 +378,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         state = power_state.NOSTATE
         try:
             vapp_name = self._get_vm_name(instance)
-            vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
+            vapp_status = self._provider_client.get_vcloud_vapp_status(vapp_name)
             state = status_dict_vapp_to_instance.get(vapp_status)
         except Exception as e:
             LOG.info('can not find the vapp %s' % e)

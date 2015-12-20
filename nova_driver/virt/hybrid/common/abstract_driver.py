@@ -40,7 +40,6 @@ IMAGE_API = image.API()
 
 
 hybrid_driver_opts = [
-# common
     cfg.StrOpt('provider',
                help='provider type (vcloud|aws)'),
     cfg.IntOpt('api_retry_count',
@@ -60,73 +59,6 @@ hybrid_driver_opts = [
                help='The network name/id of the api provider network.'),
     cfg.StrOpt('provider_tunnel_network',
                help='The network name/id of the tunnel provider network.'),
-
-# aws specifics
-    cfg.StrOpt('aws_access_key_id',
-               help='the access key id for connection to aws'),
-    cfg.StrOpt('aws_secret_access_key',
-               help='the secret key  for connection to EC2'),
-    cfg.StrOpt('aws_region_name',
-               default='us-east-1',
-               help='the region for connection to EC2'),
-    cfg.StrOpt('aws_base_linux_image',
-               default='ami-68d8e93a',
-               help='use for create a base ec2 instance'),
-    cfg.DictOpt('aws_flavor_map',
-                default={'m1.tiny': 't2.micro',
-                         'm1.small': 't2.micro',
-                         'm1.medium': 't2.micro3',
-                         'm1.large': 't2.micro',
-                         'm1.xlarge': 't2.micro'},
-                help='nova flavor name to aws ec2 instance type mapping'),
-
-# vcloud specifics
-    cfg.StrOpt('vcloud_node_name',
-               default='vcloud_node_01',
-               help='node name, which a node is a vcloud vcd'
-               'host.'),
-    cfg.StrOpt('vcloud_host_ip',
-               help='Hostname or IP address for connection to VMware VCD '
-               'host.'),
-    cfg.IntOpt('vcloud_host_port',
-               default=443,
-               help='Host port for cnnection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_host_username',
-               help='Host username for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_host_password',
-               help='Host password for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_org',
-               help='User org for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_vdc',
-               help='Vdc for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_version',
-               default='5.5',
-               help='Version for connection to VMware VCD '
-               'host.'),
-    cfg.DictOpt('vcloud_flavor_map',
-                default={
-                    'm1.tiny': '1',
-                    'm1.small': '2',
-                    'm1.medium': '3',
-                    'm1.large': '4',
-                    'm1.xlarge': '5'},
-                help='map nova flavor name to vcloud vm specification id'),
-    cfg.BoolOpt('vcloud_verify',
-                default=False,
-                help='Verify for connection to VMware VCD '
-                'host.'),
-    cfg.StrOpt('vcloud_service_type',
-               default='vcd',
-               help='Service type for connection to VMware VCD '
-               'host.'),
-    cfg.StrOpt('vcloud_metadata_iso_catalog',
-               default='metadata-isos',
-               help='The metadata iso cotalog.'),
 ]
 
 
@@ -160,6 +92,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
     def _image_exists_in_provider(self):
         return False
+
+    def _update_vm_task_state(self, instance, task_state):
+        instance.task_state = task_state
+        instance.save()
 
     def spawn(self,
               context,
@@ -250,7 +186,13 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
     def reboot(self, context, instance, network_info, reboot_type,
                block_device_info=None, bad_volumes_callback=None):
-        LOG.debug("reboot")
+        LOG.debug('begin reboot instance: %s' % instance.uuid)
+        name = self._get_vm_name(instance)
+        try:
+            self._provider_client.reboot(name)
+        except Exception as e:
+            LOG.error('reboot instance %s failed, %s' % (name, e))
+
 
     def set_admin_password(self, instance, new_pass):
         LOG.debug("set_admin_password")
@@ -289,10 +231,17 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug("post_live_migration_at_destination")
 
     def power_off(self, instance, shutdown_timeout=0, shutdown_attempts=0):
-        LOG.debug("power_off")
+        LOG.debug('begin reboot instance: %s' % instance.uuid)
+        name = self._get_vm_name(instance)
+        try:
+            self._provider_client.power_off(name)
+        except Exception as e:
+            LOG.error('power off failed, %s' % e)
 
     def power_on(self, context, instance, network_info, block_device_info):
-        LOG.debug("power_on")
+        name = self._get_vm_name(instance)
+        self._provider_client.power_on(name)
+
 
     def soft_delete(self, instance):
         LOG.debug("soft_delete")
