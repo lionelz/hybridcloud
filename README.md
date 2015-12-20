@@ -96,10 +96,14 @@ mkdir /opt/stack/data/hybridcloud
 mkdir /opt/stack/data/hybridcloud/vmx
 copy /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridcloud/vmx 
 ```
-- TROUBLESHOOTING: olso.utils package version must be 1.4.1
+- TROUBLESHOOTING: oslo.utils package version must be 1.4.1
 ```
-sudo pip unsinstall olso.utils
-sudo pip install olso.utils==1.4.1
+sudo pip uninstall oslo.utils
+sudo pip install oslo.utils==1.4.1
+``` 
+- Install openstack
+``` 
+cd ~/devstack && ./stack.sh
 ``` 
 
 ## Agent VM creation
