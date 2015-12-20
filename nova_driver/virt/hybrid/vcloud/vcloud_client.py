@@ -17,19 +17,18 @@ CONF = cfg.CONF
 class VCloudClient(object):
 
     def __init__(self, scheme):
-        self._metadata_iso_catalog = CONF.vcloud.metadata_iso_catalog
+        self._metadata_iso_catalog = CONF.hybrid_driver.vcloud_metadata_iso_catalog
         self._session = VCloudAPISession(
-            host_ip=CONF.vcloud.vcloud_host_ip,
-            host_port=CONF.vcloud.vcloud_host_port,
-            server_username=CONF.vcloud.vcloud_host_username,
-            server_password=CONF.vcloud.vcloud_host_password,
-            org=CONF.vcloud.vcloud_org,
-            vdc=CONF.vcloud.vcloud_vdc,
-            version=CONF.vcloud.vcloud_version,
-            service=CONF.vcloud.vcloud_service,
-            verify=CONF.vcloud.vcloud_verify,
-            service_type=CONF.vcloud.vcloud_service_type,
-            retry_count=CONF.vcloud.vcloud_api_retry_count,
+            host_ip=CONF.hybrid_driver.vcloud_host_ip,
+            host_port=CONF.hybrid_driver.vcloud_host_port,
+            server_username=CONF.hybrid_driver.vcloud_host_username,
+            server_password=CONF.hybrid_driver.vcloud_host_password,
+            org=CONF.hybrid_driver.vcloud_org,
+            vdc=CONF.hybrid_driver.vcloud_vdc,
+            version=CONF.hybrid_driver.vcloud_version,
+            verify=CONF.hybrid_driver.vcloud_verify,
+            service_type=CONF.hybrid_driver.vcloud_service_type,
+            retry_count=CONF.hybrid_driver.api_retry_count,
             create_session=True,
             scheme=scheme)
 

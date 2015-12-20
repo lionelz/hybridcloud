@@ -442,7 +442,7 @@ class VCloudAPISession(object):
     """
 
     def __init__(self, host_ip, host_port, server_username, server_password,
-                 org, vdc, version, service, verify, service_type,
+                 org, vdc, version, verify, service_type,
                  retry_count, create_session=True, scheme="https",
                  task_poll_interval=1):
         self._host_ip = host_ip

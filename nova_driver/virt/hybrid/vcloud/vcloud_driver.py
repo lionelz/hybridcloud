@@ -74,7 +74,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
     """The VCloud host connection object."""
 
     def __init__(self, virtapi, scheme="https"):
-        self._node_name = cfg.CONF.hyper_driver.vcloud_node_name
+        self._node_name = cfg.CONF.hybrid_driver.vcloud_node_name
         self._vcloud_client = VCloudClient(scheme=scheme)
 
         super(VCloudDriver, self).__init__(virtapi)
@@ -122,7 +122,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                                                                vapp_name)
 
         vm_flavor_name = instance.get_flavor().name
-        vcloud_flavor_id = cfg.CONF.hyper_driver.vcloud_flavor_map[vm_flavor_name]
+        vcloud_flavor_id = cfg.CONF.hybrid_driver.vcloud_flavor_map[vm_flavor_name]
         vm_task_state = instance.task_state
 
         # vmdk to ovf
@@ -163,8 +163,8 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         self._vcloud_client.upload_vm(
             ovf_name,
             vapp_name,
-            cfg.CONF.hyper_driver.provider_tunnel_network,
-            cfg.CONF.hyper_driver.provider_api_network)
+            cfg.CONF.hybrid_driver.provider_tunnel_network,
+            cfg.CONF.hybrid_driver.provider_api_network)
 
         self._update_vm_task_state(
             instance,
@@ -245,7 +245,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         remote_vmdk_url = self._vcloud_client.query_vmdk_url(vapp_name)
 
         # 2. download vmdk
-        temp_dir = '%s/%s' % (cfg.CONF.hyper_driver.conversion_dir,
+        temp_dir = '%s/%s' % (cfg.CONF.hybrid_driver.conversion_dir,
                               instance.uuid)
         fileutils.ensure_tree(temp_dir)
 

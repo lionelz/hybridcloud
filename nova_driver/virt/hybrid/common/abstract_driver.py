@@ -28,7 +28,7 @@ from nova.volume.cinder import API as cinder_api
 
 from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import util
-from nova_driver.virt.hybrid.common import task_states
+from nova_driver.virt.hybrid.common import hybrid_task_states
 from nova_driver.virt.hybrid.vcloud import hyper_agent_api
 
 from oslo.config import cfg
@@ -39,7 +39,7 @@ LOG = logging.getLogger(__name__)
 IMAGE_API = image.API()
 
 
-hyper_driver_opts = [
+hybrid_driver_opts = [
 # common
     cfg.StrOpt('provider',
                help='provider type (vcloud|aws)'),
@@ -116,13 +116,21 @@ hyper_driver_opts = [
                     'm1.large': '4',
                     'm1.xlarge': '5'},
                 help='map nova flavor name to vcloud vm specification id'),
+    cfg.BoolOpt('vcloud_verify',
+                default=False,
+                help='Verify for connection to VMware VCD '
+                'host.'),
+    cfg.StrOpt('vcloud_service_type',
+               default='vcd',
+               help='Service type for connection to VMware VCD '
+               'host.'),
     cfg.StrOpt('vcloud_metadata_iso_catalog',
                default='metadata-isos',
                help='The metadata iso cotalog.'),
 ]
 
 
-cfg.CONF.register_opts(hyper_driver_opts, 'hyper_driver')
+cfg.CONF.register_opts(hybrid_driver_opts, 'hybrid_driver')
 
 
 
@@ -133,11 +141,11 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         super(AbstractHybridNovaDriver, self).__init__(virtapi)
         self.instances = {}
         self.cinder_api = cinder_api()
-        self.conversion_dir = cfg.CONF.hyper_driver.conversion_dir
-        if not os.path.exists():
+        self.conversion_dir = cfg.CONF.hybrid_driver.conversion_dir
+        if not os.path.exists(self.conversion_dir):
             os.makedirs(self.conversion_dir)
 
-        self.volumes_dir = cfg.CONF.hyper_driver.volumes_dir
+        self.volumes_dir = cfg.CONF.hybrid_driver.volumes_dir
         if not os.path.exists(self.volumes_dir):
             os.makedirs(self.volumes_dir)
 
@@ -204,7 +212,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                 LOG.debug("Begin download image file %s " %(image_uuid))
                 self._update_vm_task_state(
                     instance,
-                    task_state=task_states.DOWNLOADING)
+                    task_state=hybrid_task_states.DOWNLOADING)
 
                 metadata = IMAGE_API.get(context, image_uuid)
                 file_size = int(metadata['size'])
@@ -218,13 +226,13 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                                     glance_file_handle,
                                     file_size,
                                     write_file_handle=orig_file_handle,
-                                    task_state=task_states.DOWNLOADING,
+                                    task_state=hybrid_task_states.DOWNLOADING,
                                     instance=instance)
 
                 # convert to vmdk
                 self._update_vm_task_state(
                     instance,
-                    task_state=task_states.CONVERTING)
+                    task_state=hybrid_task_states.CONVERTING)
 
                 common_tools.convert_vm(metadata["disk_format"],
                                     orig_file_name,
@@ -491,7 +499,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug("unplug_vifs")
 
     def _get_vm_name(self, instance):
-        vm_naming_rule = cfg.CONF.hyper_driver.vm_naming_rule
+        vm_naming_rule = cfg.CONF.hybrid_driver.vm_naming_rule
         if vm_naming_rule == 'openstack_vm_id':
             return instance.uuid
         elif vm_naming_rule == 'openstack_vm_name':
