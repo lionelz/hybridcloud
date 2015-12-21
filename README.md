@@ -22,6 +22,9 @@ sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev
 sudo pip install pyvcloud==10
 ```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
+```
+sh tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle
+```
 - Add in the PYTHONPATH the folder /opt/stack/hybridcloud
 ```
 Add in the file ~/.bashrc add at the end:
@@ -87,7 +90,7 @@ vcloud_host_password = ##vcloud password##
 vcloud_vm_naming_rule = openstack_vm_id
 vcloud_flavor_map =  m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large:1, m1.xlarge:1
 vcloud_node_name = ##node description name##
-provider_api_network_name = ##name of mgmt net in vmcloud##
+provider_api_network_name = ##name of mgmt net in vcloud##
 provider_tunnel_network_name = ##name of data net in vcloud##
 ```
 - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
@@ -120,6 +123,7 @@ sudo sysctl -p
 - add juno openstack repository
 ```
 sudo add-apt-repository cloud-archive:juno
+sudo apt-get update && sudo apt-get upgrade
 ```
 - install neutron agent
 ```
