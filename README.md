@@ -87,8 +87,8 @@ vcloud_host_password = ##vcloud password##
 vcloud_vm_naming_rule = openstack_vm_id
 vcloud_flavor_map =  m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large:1, m1.xlarge:1
 vcloud_node_name = ##node description name##
-provider_api_network_name = api-network
-provider_tunnel_network_name = data-network
+provider_api_network_name = ##name of mgmt net in vmcloud##
+provider_tunnel_network_name = ##name of data net in vcloud##
 ```
 - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
 ```
