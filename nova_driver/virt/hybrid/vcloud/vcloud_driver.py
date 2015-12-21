@@ -142,17 +142,17 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         LOG.info('begin time of vcloud create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
-        conversion_dir = super(VCloudDriver, self).spawn(
-            context,
-            instance,
-            image_meta,
-            injected_files,
-            admin_password,
-            network_info,
-            block_device_info
-        )
+        # download and convert to vmdk
+        (conversion_dir, image_uuid) = self._download_image(context,
+                                                            instance,
+                                                            image_meta)
+        self._convert_to_vmdk(context,
+                              instance,
+                              image_meta,
+                              conversion_dir,
+                              image_uuid)
 
-        #0: create metadata iso and upload to vcloud
+        # create metadata iso and upload to vcloud: move to provider driver
         rabbit_host = cfg.CONF.rabbit_host
         if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
             rabbit_host =cfg.CONF.rabbit_hosts[0]
@@ -166,43 +166,16 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
              "host": instance.uuid},
             conversion_dir)
         vapp_name = self._get_vm_name(instance)
-        metadata_iso = self._provider_client.upload_metadata_iso(iso_file,
-                                                               vapp_name)
+        metadata_iso = self._provider_client.upload_metadata_iso(
+            iso_file, vapp_name)
 
         vm_flavor_name = instance.get_flavor().name
         vcloud_flavor_id = cfg.CONF.vcloud.flavor_map[vm_flavor_name]
-        vm_task_state = instance.task_state
-
-        # vmdk to ovf
-        self._update_vm_task_state(
-            instance,
-            task_state=hybrid_task_states.PACKING)
-
-        vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
         vmx_name = 'base-%s.vmx' % vcloud_flavor_id
-        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, vmx_name)
-        vmx_full_name = '%s/%s' % (conversion_dir, vmx_name)
         
-        LOG.debug("copy vmx_cache file %s to vmx_full_name %s " \
-                       %(vmx_cache_full_name,vmx_full_name))
-        shutil.copy2(vmx_cache_full_name, vmx_full_name)
-        
-        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s " \
-                       %(vmx_cache_full_name,vmx_full_name))
-
-        ovf_name = '%s/%s.ovf' % (conversion_dir, instance.uuid)
-
-        mk_ovf_cmd = 'ovftool -o %s %s' % \
-                     (vmx_full_name, ovf_name)
-
-        LOG.debug("begin run command %s " %(mk_ovf_cmd))
-        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True) 
-        LOG.debug("end run command %s " %(mk_ovf_cmd))
-
-        if mk_ovf_result != 0:
-            LOG.error('make ovf failed!')
-            self._update_vm_task_state(instance, task_state=vm_task_state)
-            return
+        ovf_name = self._convert_vmdk_to_ovf(instance,
+                                             conversion_dir,
+                                             vmx_name)
 
         # upload ovf to vcloud
         self._update_vm_task_state(

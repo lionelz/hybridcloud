@@ -62,24 +62,36 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
         LOG.info('begin time of aws create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
-        conversion_dir = super(AWSDriver, self).spawn(
-            context,
-            instance,
-            image_meta,
-            injected_files,
-            admin_password,
-            network_info,
-            block_device_info
-        )
+        if not self._image_exists_in_provider(instance):
+            # download
+            (conversion_dir, image_uuid) = self._download_image(context,
+                                                                instance,
+                                                                image_meta)
+            # convert if necessary
+            metadata = IMAGE_API.get(context, image_uuid)
+            if metadata['disk_format'] != 'ami':
+                self._convert_to_vmdk(context,
+                                      instance,
+                                      image_meta,
+                                      conversion_dir,
+                                      image_uuid)
         
-        # import the vmdk as a new image
-        vm_name = self._get_vm_name(instance)
-        self._provider_client.import_image(
-            vm_name,
-            "%s/converted-file.vmdk" % conversion_dir,
-            cfg.CONF.aws.s3_bucket_tmp,
-            instance
-        )
+            if metadata['disk_format'] == 'ami':
+                file_name = '%s/%s' % (self.conversion_dir, image_uuid)
+            else:
+                vmx_name = 'base-aws.vmx'
+                self._convert_vmdk_to_ovf(instance,
+                                          conversion_dir,
+                                          vmx_name)
+                file_name = '%s/%s-disk1.vmdk' % (conversion_dir, instance.uuid)
+            # import the file as a new AMI image
+            vm_name = self._get_vm_name(instance)
+            self._provider_client.import_image(
+                vm_name,
+                file_name,
+                cfg.CONF.aws.s3_bucket_tmp,
+                instance
+            )
         
         # launch the VM with 2 networks
 

@@ -17,6 +17,7 @@ A Fake Nova Driver implementing all method with logs
 """
 import os
 import shutil
+import subprocess
 
 
 from nova import image
@@ -90,21 +91,17 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug("list_instances")
         return self.instances.keys()
 
-    def _image_exists_in_provider(self):
+    def _image_exists_in_provider(self, instance):
         return False
 
     def _update_vm_task_state(self, instance, task_state):
         instance.task_state = task_state
         instance.save()
 
-    def spawn(self,
-              context,
-              instance,
-              image_meta,
-              injected_files,
-              admin_password,
-              network_info=None,
-              block_device_info=None):
+    def _download_image(self,
+                        context,
+                        instance,
+                        image_meta):
         conversion_dir = '%s/%s' % (self.conversion_dir, instance.uuid)
         fileutils.ensure_tree(conversion_dir)
         os.chdir(conversion_dir)
@@ -115,71 +112,102 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         else:
             # create from volume
             image_uuid = image_meta['properties']['image_id']
+        dest_file_name = self.conversion_dir + '/' + image_uuid
+        if not os.path.exists(dest_file_name):
+            orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
+            LOG.debug("Begin download image file %s " %(image_uuid))
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.DOWNLOADING)
+    
+            metadata = IMAGE_API.get(context, image_uuid)
+            file_size = int(metadata['size'])
+            read_iter = IMAGE_API.download(context, image_uuid)
+            glance_file_handle = util.GlanceFileRead(read_iter)
+    
+            orig_file_handle = fileutils.file_open(orig_file_name, "wb")
+    
+            util.start_transfer(context,
+                                glance_file_handle,
+                                file_size,
+                                write_file_handle=orig_file_handle,
+                                task_state=hybrid_task_states.DOWNLOADING,
+                                instance=instance)
+            # move to dest_file_name
+            shutil.move(orig_file_name, dest_file_name)
+        return (conversion_dir, image_uuid)
 
-        if not self._image_exists_in_provider():
-            converted_file_name = conversion_dir + '/converted-file.vmdk'
+    def _convert_to_vmdk(self,
+                         context,
+                         instance,
+                         image_meta,
+                         conversion_dir,
+                         image_uuid):
+        converted_file_name = '%s/converted-file.vmdk' % conversion_dir
+        orig_file_name  = '%s/%s' % (self.conversion_dir, image_uuid)
+        image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
 
-            block_device_mapping = driver.block_device_info_get_mapping(
-                block_device_info)
+        # check if the image or volume vmdk cached
+        if os.path.exists(image_vmdk_file_name):
+            # if image cached, link the image file to conversion dir
+            os.link(image_vmdk_file_name, converted_file_name)
+        else:
+            LOG.debug("Begin download image file %s " %(image_uuid))
 
-            image_vmdk_file_name = '%s/%s.vmdk' % (
-                self.conversion_dir,
-                image_uuid)
+            metadata = IMAGE_API.get(context, image_uuid)
 
-            volume_file_name = ''
-            if len(block_device_mapping) > 0:
-                volume_id = block_device_mapping[0][
-                    'connection_info']['data']['volume_id']
-                volume_file_name = '%s/%s.vmdk' % (
-                    self.volumes_dir, volume_id)
+            # convert to vmdk
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.CONVERTING)
 
-            # check if the image or volume vmdk cached
-            if os.path.exists(volume_file_name):
-                # if volume cached, move the volume file to conversion dir
-                shutil.move(volume_file_name, converted_file_name)
-            elif os.path.exists(image_vmdk_file_name):
-                LOG.debug("Image file exists, copy %s to converted_file %s " % (
-                    image_vmdk_file_name, converted_file_name))
-                # if image cached, copy ghe image file to conversion dir
-                shutil.copy2(image_vmdk_file_name, converted_file_name)
-                LOG.debug("End copy image file %s to converted_file %s "  % (
-                    image_vmdk_file_name, converted_file_name))
-            else:
-                LOG.debug("Begin download image file %s " %(image_uuid))
-                self._update_vm_task_state(
-                    instance,
-                    task_state=hybrid_task_states.DOWNLOADING)
-
-                metadata = IMAGE_API.get(context, image_uuid)
-                file_size = int(metadata['size'])
-                read_iter = IMAGE_API.download(context, image_uuid)
-                glance_file_handle = util.GlanceFileRead(read_iter)
-
-                orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
-                orig_file_handle = fileutils.file_open(orig_file_name, "wb")
-
-                util.start_transfer(context,
-                                    glance_file_handle,
-                                    file_size,
-                                    write_file_handle=orig_file_handle,
-                                    task_state=hybrid_task_states.DOWNLOADING,
-                                    instance=instance)
-
-                # convert to vmdk
-                self._update_vm_task_state(
-                    instance,
-                    task_state=hybrid_task_states.CONVERTING)
-
-                common_tools.convert_vm(metadata["disk_format"],
+            common_tools.convert_vm(metadata['disk_format'],
                                     orig_file_name,
                                     'vmdk',
                                     converted_file_name)
 
-                LOG.debug("Copy image file %s to converted_file %s " %(
-                    image_vmdk_file_name, converted_file_name))
-                shutil.copy2(converted_file_name,image_vmdk_file_name)
+            shutil.move(converted_file_name, image_vmdk_file_name)
+            os.link(image_vmdk_file_name, converted_file_name)
 
-        return conversion_dir
+    def _convert_vmdk_to_ovf(self, instance, conversion_dir, vmx_name):
+        vm_task_state = instance.task_state
+        self._update_vm_task_state(
+            instance,
+            task_state=hybrid_task_states.PACKING)
+
+        vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
+        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, vmx_name)
+        vmx_full_name = '%s/%s' % (conversion_dir, vmx_name)
+        
+        LOG.debug("copy vmx_cache file %s to vmx_full_name %s" % (
+            vmx_cache_full_name, vmx_full_name))
+        shutil.copy2(vmx_cache_full_name, vmx_full_name)
+        
+        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s" % (
+            vmx_cache_full_name, vmx_full_name))
+
+        ovf_name = '%s/%s.ovf' % (conversion_dir, instance.uuid)
+
+        mk_ovf_cmd = 'ovftool -o %s %s' % (vmx_full_name, ovf_name)
+
+        LOG.debug("begin run command %s" % mk_ovf_cmd)
+        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True) 
+        LOG.debug("end run command %s" % mk_ovf_cmd)
+
+        if mk_ovf_result != 0:
+            LOG.error('make ovf failed!')
+            self._update_vm_task_state(instance, task_state=vm_task_state)
+        return ovf_name
+
+    def spawn(self,
+              context,
+              instance,
+              image_meta,
+              injected_files,
+              admin_password,
+              network_info=None,
+              block_device_info=None):
+        LOG.debug("spawn")
 
     def snapshot(self, context, instance, image_id, update_task_state):
         LOG.debug("snapshot")
