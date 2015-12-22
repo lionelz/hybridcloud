@@ -14,18 +14,18 @@ class ProviderClient(object):
         pass
 
     @abc.abstractmethod
-    def power_off(self, name):
+    def power_off(self, instance, name):
         pass
         
     @abc.abstractmethod
-    def power_on(self, name):
+    def power_on(self, instance, name):
         pass
 
     @abc.abstractmethod
-    def delete(self, name):
+    def delete(self, instance, name):
         pass
 
     @abc.abstractmethod
-    def reboot(self, name):
+    def reboot(self, instance, name):
         pass
 

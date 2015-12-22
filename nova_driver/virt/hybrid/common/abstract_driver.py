@@ -56,10 +56,10 @@ hybrid_driver_opts = [
                default='openstack_vm_id',
                help='the rule to name VMs in the provider, valid options:'
                'openstack_vm_id, openstack_vm_name, cascaded_openstack_rule'),
-    cfg.StrOpt('provider_api_network',
-               help='The network name/id of the api provider network.'),
-    cfg.StrOpt('provider_tunnel_network',
-               help='The network name/id of the tunnel provider network.'),
+    cfg.StrOpt('provider_mgnt_network',
+               help='The network name/id of the management provider network.'),
+    cfg.StrOpt('provider_data_network',
+               help='The network name/id of the data provider network.'),
 ]
 
 
@@ -91,7 +91,31 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug("list_instances")
         return self.instances.keys()
 
-    def _image_exists_in_provider(self, instance):
+    def _get_image_uuid(self, image_meta):
+        if 'id' in image_meta:
+            # create from image
+            image_uuid = image_meta['id']
+        else:
+            # create from volume
+            image_uuid = image_meta['properties']['image_id']
+        return image_uuid
+
+    def _get_user_metadata(self, instance):
+        rabbit_host = cfg.CONF.rabbit_host
+        if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
+            rabbit_host =cfg.CONF.rabbit_hosts[0]
+        if ':' in rabbit_host:
+            rabbit_host = rabbit_host[0:rabbit_host.find(':')]
+        return {"rabbit_userid": cfg.CONF.rabbit_userid,
+                 "rabbit_password": cfg.CONF.rabbit_password,
+                 "rabbit_host": rabbit_host,
+                 "host": instance.uuid}
+        
+
+    def _get_conversion_dir(self, instance):
+        return '%s/%s' % (self.conversion_dir, instance.uuid)
+        
+    def _image_exists_in_provider(self, image_meta):
         return False
 
     def _update_vm_task_state(self, instance, task_state):
@@ -102,16 +126,11 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                         context,
                         instance,
                         image_meta):
-        conversion_dir = '%s/%s' % (self.conversion_dir, instance.uuid)
+        conversion_dir = self._get_conversion_dir(instance)
         fileutils.ensure_tree(conversion_dir)
         os.chdir(conversion_dir)
+        image_uuid = self._get_image_uuid(image_meta)
 
-        if 'id' in image_meta:
-            # create from image
-            image_uuid = image_meta['id']
-        else:
-            # create from volume
-            image_uuid = image_meta['properties']['image_id']
         dest_file_name = self.conversion_dir + '/' + image_uuid
         if not os.path.exists(dest_file_name):
             orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
@@ -135,14 +154,13 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                                 instance=instance)
             # move to dest_file_name
             shutil.move(orig_file_name, dest_file_name)
-        return (conversion_dir, image_uuid)
 
     def _convert_to_vmdk(self,
                          context,
                          instance,
-                         image_meta,
-                         conversion_dir,
-                         image_uuid):
+                         image_meta):
+        image_uuid = self._get_image_uuid(image_meta)
+        conversion_dir = self._get_conversion_dir(instance)
         converted_file_name = '%s/converted-file.vmdk' % conversion_dir
         orig_file_name  = '%s/%s' % (self.conversion_dir, image_uuid)
         image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
@@ -169,7 +187,8 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             shutil.move(converted_file_name, image_vmdk_file_name)
             os.link(image_vmdk_file_name, converted_file_name)
 
-    def _convert_vmdk_to_ovf(self, instance, conversion_dir, vmx_name):
+    def _convert_vmdk_to_ovf(self, instance, vmx_name):
+        conversion_dir = self._get_conversion_dir(instance)
         vm_task_state = instance.task_state
         self._update_vm_task_state(
             instance,
@@ -262,13 +281,13 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         LOG.debug('begin reboot instance: %s' % instance.uuid)
         name = self._get_vm_name(instance)
         try:
-            self._provider_client.power_off(name)
+            self._provider_client.power_off(instance, name)
         except Exception as e:
             LOG.error('power off failed, %s' % e)
 
     def power_on(self, context, instance, network_info, block_device_info):
         name = self._get_vm_name(instance)
-        self._provider_client.power_on(name)
+        self._provider_client.power_on(instance, name)
 
 
     def soft_delete(self, instance):

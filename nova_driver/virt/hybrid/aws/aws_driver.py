@@ -1,3 +1,4 @@
+import os
 import shutil
 import time
 
@@ -27,7 +28,10 @@ aws_driver_opts = [
                          'm1.large': 't2.micro',
                          'm1.xlarge': 't2.micro'},
                 help='nova flavor name to aws ec2 instance type mapping'),
-
+    cfg.StrOpt('security_group_mgnt_network',
+               help='security group management network id'),
+    cfg.StrOpt('security_group_data_network',
+               help='security group data network id'),
 ]
 
 
@@ -51,6 +55,10 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
             region_name=cfg.CONF.aws.region_name)
         super(AWSDriver, self).__init__(virtapi)
 
+    def _image_exists_in_provider(self, image_meta):
+        image_uuid = self._get_image_uuid(image_meta)
+        return self._provider_client.is_exists_image(image_uuid)
+
     def spawn(self,
               context,
               instance,
@@ -61,45 +69,60 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
               block_device_info=None):
         LOG.info('begin time of aws create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-
-        if not self._image_exists_in_provider(instance):
-            # download
-            (conversion_dir, image_uuid) = self._download_image(context,
-                                                                instance,
-                                                                image_meta)
-            # convert if necessary
-            metadata = IMAGE_API.get(context, image_uuid)
-            if metadata['disk_format'] != 'ami':
-                self._convert_to_vmdk(context,
-                                      instance,
-                                      image_meta,
-                                      conversion_dir,
-                                      image_uuid)
-        
-            if metadata['disk_format'] == 'ami':
-                file_name = '%s/%s' % (self.conversion_dir, image_uuid)
-            else:
+        conversion_dir = self._get_conversion_dir(instance)
+        try:
+            if not self._image_exists_in_provider(image_meta):
+                # download
+                self._download_image(context, instance, image_meta)
+                # convert to mdk
+                self._convert_to_vmdk(context, instance, image_meta)
+            
                 vmx_name = 'base-aws.vmx'
+                # convert to ovf
                 self._convert_vmdk_to_ovf(instance,
-                                          conversion_dir,
                                           vmx_name)
-                file_name = '%s/%s-disk1.vmdk' % (conversion_dir, instance.uuid)
-            # import the file as a new AMI image
+                
+                # upload all the disks in 1 image:
+                file_names = []
+                for x in range(1, 20):
+                    file_name = '%s/%s-disk%d.vmdk' % (
+                        conversion_dir, instance.uuid, x)
+                    if (os.path.exists(file_name)):
+                        file_names += [file_name]
+                    
+                # import the file as a new AMI image
+                vm_name = self._get_vm_name(instance)
+                self._provider_client.import_image(
+                    vm_name,
+                    file_names,
+                    cfg.CONF.aws.s3_bucket_tmp,
+                    instance,
+                    self._get_image_uuid(image_meta)
+                )
+            
+            # launch the VM with 2 networks
+            vm_flavor_name = instance.get_flavor().name
+            instance_type = cfg.CONF.aws.flavor_map[vm_flavor_name]
+            image_uuid = self._get_image_uuid(image_meta)
             vm_name = self._get_vm_name(instance)
-            self._provider_client.import_image(
-                vm_name,
-                file_name,
-                cfg.CONF.aws.s3_bucket_tmp,
-                instance
+            self._provider_client.create_instance(
+                instance=instance,
+                name=vm_name,
+                image_uuid=image_uuid,
+                user_data=self._get_user_metadata(instance),
+                instance_type=instance_type,
+                mgnt_net=cfg.CONF.aws.security_group_mgnt_network,
+                mgnt_sec_group=cfg.CONF.aws.provider_mgnt_network,
+                data_net=cfg.CONF.hybrid_driver.provider_data_network,
+                data_sec_group=cfg.CONF.hybrid_driver.security_group_data_network
             )
-        
-        # launch the VM with 2 networks
-
-        shutil.rmtree(conversion_dir, ignore_errors=True)
-        LOG.info('end time of aws create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+        finally:
+            shutil.rmtree(conversion_dir, ignore_errors=True)
+            LOG.info('end time of aws create vm is %s' %
+                      (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
     def get_info(self, instance):
+        # TODO: implement it
         state = power_state.NOSTATE
         try:
             vm_name = self._get_vm_name(instance)

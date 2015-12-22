@@ -102,7 +102,7 @@ class VCloudClient(provider_client.ProviderClient):
 
     @RetryDecorator(max_retry_count=10,
                     exceptions=exception.NovaException)
-    def power_off(self, name):
+    def power_off(self, instance, name):
         expected_vapp_status = 8
         the_vapp = self._get_vcloud_vapp(name)
         vapp_status = self._get_status_first_vm(the_vapp)
@@ -136,7 +136,7 @@ class VCloudClient(provider_client.ProviderClient):
         
     @RetryDecorator(max_retry_count=10,
                     exceptions=exception.NovaException)
-    def power_on(self, name):
+    def power_on(self, instance, name):
         the_vapp = self._get_vcloud_vapp(name)
 
         vapp_status = self._get_status_first_vm(the_vapp)
@@ -160,7 +160,7 @@ class VCloudClient(provider_client.ProviderClient):
             retry_times -= 1
         return the_vapp
 
-    def delete(self, name):
+    def delete(self, instance, name):
         the_vapp = self._get_vcloud_vapp(name)
         task = self._invoke_vapp_api(the_vapp, "delete")
         if not task:
@@ -168,7 +168,7 @@ class VCloudClient(provider_client.ProviderClient):
                 "delete vapp failed, task: %s" % task)
         self._session.wait_for_task(task)
 
-    def reboot(self, name):
+    def reboot(self, instance, name):
         the_vapp = self._get_vcloud_vapp(name)
         task = self._invoke_vapp_api(the_vapp, "reboot")
         if not task:
@@ -248,12 +248,12 @@ class VCloudClient(provider_client.ProviderClient):
             self._session.wait_for_task(task)
             return True
 
-    def upload_vm(self, ovf_name, vapp_name, api_net, tun_net):
+    def upload_vm(self, ovf_name, vapp_name, mgnt_net, data_net):
         cmd = ('ovftool --net:"vmnetwork-0=%s"'
                ' --net:"vmnetwork-1=%s"'
                ' %s "vcloud://%s:%s@%s?org=%s&vdc=%s&vapp=%s"' %
-               (api_net,
-                tun_net,
+               (mgnt_net,
+                data_net,
                 ovf_name,
                 self.username,
                 self.password,

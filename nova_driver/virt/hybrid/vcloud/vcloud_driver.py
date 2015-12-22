@@ -141,83 +141,71 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
               block_device_info=None):
         LOG.info('begin time of vcloud create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-
-        # download and convert to vmdk
-        (conversion_dir, image_uuid) = self._download_image(context,
-                                                            instance,
-                                                            image_meta)
-        self._convert_to_vmdk(context,
-                              instance,
-                              image_meta,
-                              conversion_dir,
-                              image_uuid)
-
-        # create metadata iso and upload to vcloud: move to provider driver
-        rabbit_host = cfg.CONF.rabbit_host
-        if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
-            rabbit_host =cfg.CONF.rabbit_hosts[0]
-        if ':' in rabbit_host:
-            rabbit_host = rabbit_host[0:rabbit_host.find(':')]
-        iso_file = common_tools.create_user_data_iso(
-            "userdata.iso",
-            {"rabbit_userid": cfg.CONF.rabbit_userid,
-             "rabbit_password": cfg.CONF.rabbit_password,
-             "rabbit_host": rabbit_host,
-             "host": instance.uuid},
-            conversion_dir)
-        vapp_name = self._get_vm_name(instance)
-        metadata_iso = self._provider_client.upload_metadata_iso(
-            iso_file, vapp_name)
-
-        vm_flavor_name = instance.get_flavor().name
-        vcloud_flavor_id = cfg.CONF.vcloud.flavor_map[vm_flavor_name]
-        vmx_name = 'base-%s.vmx' % vcloud_flavor_id
-        
-        ovf_name = self._convert_vmdk_to_ovf(instance,
-                                             conversion_dir,
-                                             vmx_name)
-
-        # upload ovf to vcloud
-        self._update_vm_task_state(
-            instance,
-            task_state=hybrid_task_states.IMPORTING)
-        self._provider_client.upload_vm(
-            ovf_name,
-            vapp_name,
-            cfg.CONF.hybrid_driver.provider_tunnel_network,
-            cfg.CONF.hybrid_driver.provider_api_network)
-
-        self._update_vm_task_state(
-            instance,
-            task_state=hybrid_task_states.VM_CREATING)
-        expected_vapp_status = VCLOUD_STATUS.POWERED_OFF
-
-        vapp_status = self._provider_client.get_vcloud_vapp_status(vapp_name)
-        LOG.debug('vapp status: %s' % vapp_status)
-        retry_times = 60
-        while vapp_status != expected_vapp_status and retry_times > 0:
-            time.sleep(3)
-            vapp_status = self._provider_client.get_vcloud_vapp_status(vapp_name)
+        conversion_dir = self._get_conversion_dir(instance)
+        try:
+            # download the image
+            self._download_image(context, instance, image_meta)
+            # convert to vmdk
+            self._convert_to_vmdk(context, instance, image_meta)
+    
+            # create metadata iso and upload to vcloud: move to provider driver
+            iso_file = common_tools.create_user_data_iso(
+                "userdata.iso",
+                self._get_user_metadata(instance),
+                conversion_dir)
+            vapp_name = self._get_vm_name(instance)
+            metadata_iso = self._provider_client.upload_metadata_iso(
+                iso_file, vapp_name)
+    
+            vm_flavor_name = instance.get_flavor().name
+            vcloud_flavor_id = cfg.CONF.vcloud.flavor_map[vm_flavor_name]
+            vmx_name = 'base-%s.vmx' % vcloud_flavor_id
+            
+            ovf_name = self._convert_vmdk_to_ovf(instance,
+                                                 vmx_name)
+    
+            # upload ovf to vcloud
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.IMPORTING)
+            self._provider_client.upload_vm(
+                ovf_name,
+                vapp_name,
+                cfg.CONF.hybrid_driver.provider_mgnt_network,
+                cfg.CONF.hybrid_driver.provider_data_network)
+    
+            self._update_vm_task_state(
+                instance,
+                task_state=hybrid_task_states.VM_CREATING)
+            expected_vapp_status = VCLOUD_STATUS.POWERED_OFF
+    
+            vapp_status = self._provider_client.get_vcloud_vapp_status(
+                vapp_name)
             LOG.debug('vapp status: %s' % vapp_status)
-            retry_times = retry_times - 1
-
-        # modified cpu
-        if(instance.get_flavor().vcpus != 1):
-            if self._provider_client.modify_vm_cpu(vapp_name,
-                                                 instance.get_flavor().vcpus):
-                LOG.info("modified %s cpu success" % vapp_name)
-
-        # mount it
-        self._provider_client.insert_media(vapp_name, metadata_iso)
-
-        # power on it
-        self._provider_client.power_on(vapp_name)
-
-        # 7. clean up
-        self._update_vm_task_state(instance, task_state=vm_task_state)
-        shutil.rmtree(conversion_dir, ignore_errors=True)
-        LOG.info('end time of vcloud create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+            retry_times = 60
+            while vapp_status != expected_vapp_status and retry_times > 0:
+                time.sleep(3)
+                vapp_status = self._provider_client.get_vcloud_vapp_status(
+                    vapp_name)
+                LOG.debug('vapp status: %s' % vapp_status)
+                retry_times = retry_times - 1
+    
+            # modified cpu
+            if(instance.get_flavor().vcpus != 1):
+                if self._provider_client.modify_vm_cpu(
+                        vapp_name, instance.get_flavor().vcpus):
+                    LOG.info("modified %s cpu success" % vapp_name)
+    
+            # mount it
+            self._provider_client.insert_media(vapp_name, metadata_iso)
+    
+            # power on it
+            self._provider_client.power_on(vapp_name)
+        finally:
+            # clean up even with exception
+            shutil.rmtree(conversion_dir, ignore_errors=True)
+            LOG.info('end time of vcloud create vm is %s' %
+                      (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
     def _download_vmdk_from_vcloud(self, context, src_url, dst_file_name):
 
@@ -309,7 +297,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
         vapp_name = self._get_vm_name(instance)
         try:
-            self._provider_client.power_off(vapp_name)
+            self._provider_client.power_off(instance, vapp_name)
         except Exception as e:
             LOG.error('power off failed, %s' % e)
 
