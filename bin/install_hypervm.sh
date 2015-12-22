@@ -14,13 +14,13 @@ edit_sysctl () {
     fi
 }
 
-edit_sysctl(net.ipv4.conf.all.rp_filter,0)
-edit_sysctl(net.ipv4.conf.default.rp_filter,0)
+edit_sysctl net.ipv4.conf.all.rp_filter 0
+edit_sysctl net.ipv4.conf.default.rp_filter 0
 sysctl -p
 
 # install the nova/neutron packages
-add-apt-repository cloud-archive:juno
-apt-get update
+add-apt-repository -y cloud-archive:juno
+apt-get -y update
 apt-get -y upgrade
 apt-get -y dist-upgrade
 apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent

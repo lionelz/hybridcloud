@@ -10,11 +10,6 @@ mount -o user,exec,utf8 -t iso9660 /dev/sr0 /media/metadata
 if [ $? -eq 0 ]; then
     if [ -f "/media/metadata/userdata.txt" ]
     then
-        # must contain
-        # export rabbit_userid=guest
-        # export rabbit_password=stack
-        # export rabbit_host=10.20.0.3
-        # export host=123456-123456
         source /media/metadata/userdata.txt
     else
         # get the metadata from 169.254.169.254
@@ -22,7 +17,11 @@ if [ $? -eq 0 ]; then
         exit -1
     fi
 else
-    echo FAIL
+    # TODO: read for user data for aws
+    export rabbit_userid=guest
+    export rabbit_password=stack
+    export rabbit_host=10.20.0.3
+    export host=agent-vm
 fi
 
 export local_ip=`ip -o -4 a | grep eth0 | awk -e '{print $4}' | cut -f1 -d'/'`
