@@ -21,6 +21,10 @@ git clone https://github.com/lionelz/hybridcloud.git
 sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev
 sudo pip install pyvcloud==10
 ```
+- Install boto3 for aws access 
+```
+sudo pip install pyvcloud==10
+```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
 ```
 sh tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle
@@ -108,10 +112,12 @@ flavor_map = m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large
 metadata_iso_catalog = metadata-isos
 ```
 - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
+- copy the base-aws.vmx file to the folder /opt/stack/data/hybridcloud/vmx
 ```
 mkdir /opt/stack/data/hybridcloud
 mkdir /opt/stack/data/hybridcloud/vmx
-copy /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridcloud/vmx 
+cp /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridcloud/vmx 
+cp /opt/stack/hybridcloud/etc/hybridcloud/base-aws.vmx /opt/stack/data/hybridcloud/vmx 
 ```
 - TROUBLESHOOTING: oslo.utils package version must be 1.4.1
 ```
