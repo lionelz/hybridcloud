@@ -30,7 +30,7 @@ from nova.volume.cinder import API as cinder_api
 from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import util
 from nova_driver.virt.hybrid.common import hybrid_task_states
-from nova_driver.virt.hybrid.vcloud import hyper_agent_api
+from nova_driver.virt.hybrid.common import hyper_agent_api
 
 from oslo.config import cfg
 
