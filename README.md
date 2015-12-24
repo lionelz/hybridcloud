@@ -23,7 +23,7 @@ sudo pip install pyvcloud==10
 ```
 - Install boto3 for aws access 
 ```
-sudo pip install pyvcloud==10
+sudo pip install boto3
 ```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
 ```
