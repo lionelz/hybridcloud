@@ -105,28 +105,37 @@ class AWSClient(provider_client.ProviderClient):
         import_task_id = res.get('ImportTaskId')
 
         d_res = self.ec2.describe_import_image_tasks(
-            ImportTaskIds=[import_task_id])
-        while d_res.get('ImportImageTasks')[0].get('Progress'):
+            ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
+        while d_res.get('Progress'):
             status = '%s (%s)' % (
                 hybrid_task_states.PROVIDER_PREPARING,
-                d_res.get('ImportImageTasks')[0].get('StatusMessage'))
+                d_res.get('StatusMessage'))
             LOG.debug("instance %s: %s" % (instance.uuid, status))
             instance.task_state = status
             instance.save()
             time.sleep(15)
             d_res = self.ec2.describe_import_image_tasks(
-                ImportTaskIds=[import_task_id])
-        if d_res.get('ImportImageTasks')[0].get('Status') != 'completed':
+                ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
+            
+        if d_res.get('Status') != 'completed':
             raise exception.NovaException(
                 "import image %s failed: %s" % (
                     name,
-                    d_res.get('ImportImageTasks')[0].get('StatusMessage')))
+                    d_res.get('StatusMessage')))
+
+        image_id = d_res.get('ImageId')
+        status = '%s (%s)' % (
+            hybrid_task_states.PROVIDER_PREPARING,
+            d_res.get('Status'))
+        LOG.debug("instance %s, %s: %s" % (instance.uuid, image_id, status))
+        instance.task_state = status
+        instance.save()
 
         waiter = self.ec2.get_waiter('image_available')
-        waiter.wait(ImageIds=[import_task_id])
+        waiter.wait(ImageIds=[image_id])
         
         # TODO: check the response
-        self.ec2.create_tags(Resources=[import_task_id],
+        self.ec2.create_tags(Resources=[image_id],
                              Tags=[{'Key': 'hybrid_cloud_image_id',
                                     'Value': image_uuid}])
 
