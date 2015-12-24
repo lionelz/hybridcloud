@@ -103,7 +103,6 @@ class AWSClient(provider_client.ProviderClient):
             DiskContainers=disk_containers
         )
         import_task_id = res.get('ImportTaskId')
-        image_id = res.get('ImageId')
 
         d_res = self.ec2.describe_import_image_tasks(
             ImportTaskIds=[import_task_id])
@@ -124,10 +123,10 @@ class AWSClient(provider_client.ProviderClient):
                     d_res.get('ImportImageTasks')[0].get('StatusMessage')))
 
         waiter = self.ec2.get_waiter('image_available')
-        waiter.wait(ImageIds=[image_id])
+        waiter.wait(ImageIds=[import_task_id])
         
         # TODO: check the response
-        self.ec2.create_tags(Resources=[image_id],
+        self.ec2.create_tags(Resources=[import_task_id],
                              Tags=[{'Key': 'hybrid_cloud_image_id',
                                     'Value': image_uuid}])
 
