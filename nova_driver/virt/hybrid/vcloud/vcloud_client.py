@@ -1,4 +1,3 @@
-import abc
 import subprocess
 import time
 
@@ -7,8 +6,7 @@ from nova import exception
 from nova.openstack.common import log as logging
 
 from nova_driver.virt.hybrid.common import provider_client
-from nova_driver.virt.hybrid.vcloud.vcloud import RetryDecorator
-from nova_driver.virt.hybrid.vcloud.vcloud import VCloudAPISession
+from nova_driver.virt.hybrid.vcloud import vcloud
 
 from oslo.config import cfg
 
@@ -18,11 +16,10 @@ CONF = cfg.CONF
 
 
 class VCloudClient(provider_client.ProviderClient):
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, scheme):
         self._metadata_iso_catalog = CONF.vcloud.metadata_iso_catalog
-        self._session = VCloudAPISession(
+        self._session = vcloud.VCloudAPISession(
             host_ip=CONF.vcloud.host_ip,
             host_port=CONF.vcloud.host_port,
             server_username=CONF.vcloud.host_username,
@@ -97,11 +94,12 @@ class VCloudClient(provider_client.ProviderClient):
         elif len(link) > 1:
             return False, 'more than one disks found with that name.'
 
-    def get_vcloud_vapp_status(self, vapp_name):
-        return self._get_vcloud_vapp(vapp_name).me.status
+    def get_vm_status(self, instance, name):
+        return vcloud.STATUS_DICT_VAPP_TO_INSTANCE[
+            self._get_vcloud_vapp(name).me.status]
 
-    @RetryDecorator(max_retry_count=10,
-                    exceptions=exception.NovaException)
+    @vcloud.RetryDecorator(max_retry_count=10,
+                           exceptions=exception.NovaException)
     def power_off(self, instance, name):
         expected_vapp_status = 8
         the_vapp = self._get_vcloud_vapp(name)
@@ -134,8 +132,8 @@ class VCloudClient(provider_client.ProviderClient):
         return None
 
         
-    @RetryDecorator(max_retry_count=10,
-                    exceptions=exception.NovaException)
+    @vcloud.RetryDecorator(max_retry_count=10,
+                           exceptions=exception.NovaException)
     def power_on(self, instance, name):
         the_vapp = self._get_vcloud_vapp(name)
 
@@ -204,8 +202,8 @@ class VCloudClient(provider_client.ProviderClient):
                 "get vmdk file url failed")
         return referenced_file_url
 
-    @RetryDecorator(max_retry_count=16,
-                    exceptions=exception.NovaException)
+    @vcloud.RetryDecorator(max_retry_count=16,
+                           exceptions=exception.NovaException)
     def attach_disk_to_vm(self, vapp_name, disk_ref):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.attach_disk_to_vm(vapp_name, disk_ref)
@@ -216,8 +214,8 @@ class VCloudClient(provider_client.ProviderClient):
             self._session.wait_for_task(task)
             return True
     
-    @RetryDecorator(max_retry_count=16,
-                    exceptions=exception.NovaException)
+    @vcloud.RetryDecorator(max_retry_count=16,
+                           exceptions=exception.NovaException)
     def detach_disk_from_vm(self, vapp_name, disk_ref):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.detach_disk_from_vm(vapp_name, disk_ref)

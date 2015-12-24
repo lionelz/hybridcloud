@@ -1,4 +1,3 @@
-import abc
 import botocore
 import os
 import threading
@@ -7,6 +6,9 @@ import time
 from boto3.session import Session
 
 from nova import exception
+
+from nova.compute import power_state
+
 from nova.openstack.common import log as logging
 
 from nova_driver.virt.hybrid.common import hybrid_task_states
@@ -14,6 +16,22 @@ from nova_driver.virt.hybrid.common import provider_client
 
 
 LOG = logging.getLogger(__name__)
+
+
+class NodeState(object):
+    RUNNING = 0
+    TERMINATED = 2
+    PENDING = 3
+    UNKNOWN = 4
+    STOPPED = 5
+    
+AWS_POWER_STATE = {
+    NodeState.RUNNING: power_state.RUNNING,
+    NodeState.TERMINATED: power_state.CRASHED,
+    NodeState.PENDING: power_state.BUILDING,
+    NodeState.UNKNOWN: power_state.NOSTATE,
+    NodeState.STOPPED: power_state.SHUTDOWN,              
+}
 
 
 class ProgressPercentage(object):
@@ -42,7 +60,6 @@ class ProgressPercentage(object):
 
 
 class AWSClient(provider_client.ProviderClient):
-    __metaclass__  = abc.ABCMeta
 
     def __init__(self,
                  aws_access_key_id,
@@ -72,72 +89,79 @@ class AWSClient(provider_client.ProviderClient):
                     'LocationConstraint': self._region_name})
 
     def import_image(self, name, file_names, s3_bucket, instance, image_uuid):
-        LOG.debug(file_names)
-        # check if the bucket exists
-        self._create_bucket_if_not_exist(s3_bucket)
-        # upload the file to the bucket:
-        disk_containers = []
-        for file_name in file_names:
-            short_file_name = os.path.basename(file_name)
+        try:
+            LOG.debug(file_names)
+            # check if the bucket exists
+            self._create_bucket_if_not_exist(s3_bucket)
+            # upload the file to the bucket:
+            disk_containers = []
+            for file_name in file_names:
+                short_file_name = os.path.basename(file_name)
+                # TODO: check the response
+                self.s3_resource.meta.client.upload_file(
+                    file_name,
+                    s3_bucket,
+                    short_file_name,
+                    ExtraArgs={
+                       'GrantRead': 'uri="http://acs.amazonaws.com/'
+                       'groups/global/AllUsers"',
+                       'ContentType': 'text/plain'},
+                    Callback=ProgressPercentage(file_name, instance))
+                disk_containers += [{
+                    'Description': 'image %s' % name,
+                    'UserBucket': {
+                        'S3Bucket': s3_bucket,
+                        'S3Key': short_file_name
+                    }}]
+            
             # TODO: check the response
-            self.s3_resource.meta.client.upload_file(
-                file_name,
-                s3_bucket,
-                short_file_name,
-                ExtraArgs={
-                   'GrantRead': 'uri="http://acs.amazonaws.com/'
-                   'groups/global/AllUsers"',
-                   'ContentType': 'text/plain'},
-                Callback=ProgressPercentage(file_name, instance))
-            disk_containers += [{
-                'Description': 'image %s' % name,
-                'UserBucket': {
-                    'S3Bucket': s3_bucket,
-                    'S3Key': short_file_name
-                }}]
-        
-        # TODO: check the response
-        res = self.ec2.import_image(
-            DryRun=False,
-            Description='image %s' % name,
-            DiskContainers=disk_containers
-        )
-        import_task_id = res.get('ImportTaskId')
-
-        d_res = self.ec2.describe_import_image_tasks(
-            ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
-        while d_res.get('Progress'):
-            status = '%s (%s)' % (
-                hybrid_task_states.PROVIDER_PREPARING,
-                d_res.get('StatusMessage'))
-            LOG.debug("instance %s: %s" % (instance.uuid, status))
-            instance.task_state = status
-            instance.save()
-            time.sleep(15)
+            res = self.ec2.import_image(
+                DryRun=False,
+                Description='image %s' % name,
+                DiskContainers=disk_containers
+            )
+            import_task_id = res.get('ImportTaskId')
+    
             d_res = self.ec2.describe_import_image_tasks(
                 ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
+            while d_res.get('Progress'):
+                status = '%s (%s)' % (
+                    hybrid_task_states.PROVIDER_PREPARING,
+                    d_res.get('StatusMessage'))
+                LOG.debug("instance %s: %s" % (instance.uuid, status))
+                instance.task_state = status
+                instance.save()
+                time.sleep(15)
+                d_res = self.ec2.describe_import_image_tasks(
+                    ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
+                
+            if d_res.get('Status') != 'completed':
+                raise exception.NovaException(
+                    "import image %s failed: %s" % (
+                        name,
+                        d_res.get('StatusMessage')))
+    
+            image_id = d_res.get('ImageId')
+            status = '%s (%s)' % (
+                hybrid_task_states.PROVIDER_PREPARING,
+                d_res.get('Status'))
+            LOG.debug("instance %s, %s: %s" % (instance.uuid,
+                                               image_id,
+                                               status))
+            instance.task_state = status
+            instance.save()
+    
+            waiter = self.ec2.get_waiter('image_available')
+            waiter.wait(ImageIds=[image_id])
             
-        if d_res.get('Status') != 'completed':
-            raise exception.NovaException(
-                "import image %s failed: %s" % (
-                    name,
-                    d_res.get('StatusMessage')))
-
-        image_id = d_res.get('ImageId')
-        status = '%s (%s)' % (
-            hybrid_task_states.PROVIDER_PREPARING,
-            d_res.get('Status'))
-        LOG.debug("instance %s, %s: %s" % (instance.uuid, image_id, status))
-        instance.task_state = status
-        instance.save()
-
-        waiter = self.ec2.get_waiter('image_available')
-        waiter.wait(ImageIds=[image_id])
-        
-        # TODO: check the response
-        self.ec2.create_tags(Resources=[image_id],
-                             Tags=[{'Key': 'hybrid_cloud_image_id',
-                                    'Value': image_uuid}])
+            # TODO: check the response
+            self.ec2.create_tags(Resources=[image_id],
+                                 Tags=[{'Key': 'hybrid_cloud_image_id',
+                                        'Value': image_uuid}])
+        finally:
+            self.s3_resource.delete_object(
+                Bucket=s3_bucket,
+                Key= file_name)
 
     def create_instance(self,
                         instance,
@@ -157,11 +181,11 @@ class AWSClient(provider_client.ProviderClient):
         for img in images:
             image_id = img.id
         user_data = ''
-        for key, value in user_metadata:
-            user_data = '%s\n%s=%s' % (user_data, key, value)
+        for k, v in user_metadata.iteritems():
+            user_data = '%s\n%s=%s' % (user_data, k, v)
 
         # create the instance
-        res = self.ec2.create_instances(
+        res = self.ec2_resource.create_instances(
             ImageId=image_id,
             MinCount=1,
             MaxCount=1,
@@ -197,7 +221,7 @@ class AWSClient(provider_client.ProviderClient):
                                    {'Key': 'name',
                                     'Value': name}])
 
-        waiter = self.ec2.get_waiter('running')
+        waiter = self.ec2.get_waiter('instance_running')
         waiter.wait(InstanceIds=[instance_id])
 
     
@@ -215,6 +239,11 @@ class AWSClient(provider_client.ProviderClient):
             'Name': 'tag:hybrid_cloud_image_id',
             'Values': [instance.uuid]}])
         
+    def get_vm_status(self, instance, vapp_name):
+        instances = self._get_instances(instance)
+        for instance in instances:
+            return AWS_POWER_STATE[instance.state]
+
     def power_off(self, instance, name):
         instances = self._get_instances(instance)
         for instance in instances:

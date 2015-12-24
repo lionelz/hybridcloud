@@ -1,4 +1,5 @@
 import abc
+import six
 
 from nova.openstack.common import log as logging
 from oslo.config import cfg
@@ -7,10 +8,14 @@ from oslo.config import cfg
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
+@six.add_metaclass(abc.ABCMeta)
 class ProviderClient(object):
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def get_vm_status(self, instance, name):
         pass
 
     @abc.abstractmethod

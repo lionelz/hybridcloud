@@ -1,15 +1,15 @@
 import os
-import shutil
 import time
 
 from oslo.config import cfg
 
 from nova import image
-from nova.compute import power_state
+
 from nova.openstack.common import log as logging
 
 from nova_driver.virt.hybrid.aws import aws_client
 from nova_driver.virt.hybrid.common import abstract_driver
+from nova_driver.virt.hybrid.common import image_convertor
 
 aws_driver_opts = [
     cfg.StrOpt('access_key_id',
@@ -28,8 +28,12 @@ aws_driver_opts = [
                          'm1.large': 't2.micro',
                          'm1.xlarge': 't2.micro'},
                 help='nova flavor name to aws ec2 instance type mapping'),
+    cfg.StrOpt('mgnt_network',
+               help='The network name/id of the management provider network.'),
     cfg.StrOpt('security_group_mgnt_network',
                help='security group management network id'),
+    cfg.StrOpt('data_network',
+               help='The network name/id of the data provider network.'),
     cfg.StrOpt('security_group_data_network',
                help='security group data network id'),
 ]
@@ -69,25 +73,29 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
               block_device_info=None):
         LOG.info('begin time of aws create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-        conversion_dir = self._get_conversion_dir(instance)
-        vm_task_state = instance.task_state
-        try:
-            if not self._image_exists_in_provider(image_meta):
+        vmx_name = 'base-aws.vmx'
+        inst_st_up = abstract_driver.InstanceStateUpdater(instance)
+        if not self._image_exists_in_provider(image_meta):
+            with image_convertor.ImageConvertorToOvf(
+                context,
+                self.conversion_dir,
+                instance.uuid,
+                self._get_image_uuid(image_meta),
+                vmx_name,
+                inst_st_up,
+                instance.task_state) as img_conv:
+
                 # download
-                self._download_image(context, instance, image_meta)
-                # convert to mdk
-                self._convert_to_vmdk(context, instance, image_meta)
+                img_conv.download_image()
+
+                ovf_name = img_conv.convert_to_ovf_format()
             
-                vmx_name = 'base-aws.vmx'
-                # convert to ovf
-                self._convert_vmdk_to_ovf(instance,
-                                          vmx_name)
-                
                 # upload all the disks in 1 image:
+                ovf_dir = os.path.dirname(ovf_name)
                 file_names = []
                 for x in range(1, 20):
                     file_name = '%s/%s-disk%d.vmdk' % (
-                        conversion_dir, instance.uuid, x)
+                        ovf_dir, instance.uuid, x)
                     if (os.path.exists(file_name)):
                         file_names += [file_name]
                     
@@ -110,34 +118,24 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                 instance=instance,
                 name=vm_name,
                 image_uuid=image_uuid,
-                user_data=self._get_user_metadata(instance),
+                user_metadata=self._get_user_metadata(instance),
                 instance_type=instance_type,
-                mgnt_net=cfg.CONF.aws.security_group_mgnt_network,
-                mgnt_sec_group=cfg.CONF.aws.provider_mgnt_network,
-                data_net=cfg.CONF.hybrid_driver.provider_data_network,
-                data_sec_group=cfg.CONF.hybrid_driver.security_group_data_network
+                mgnt_net=cfg.CONF.aws.mgnt_network,
+                mgnt_sec_group=cfg.CONF.aws.security_group_mgnt_network,
+                data_net=cfg.CONF.aws.data_network,
+                data_sec_group=cfg.CONF.aws.security_group_data_network
             )
-        finally:
-            self._update_vm_task_state(instance, task_state=vm_task_state)
-            shutil.rmtree(conversion_dir, ignore_errors=True)
-            LOG.info('end time of aws create vm is %s' %
-                      (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+        LOG.info('end time of aws create vm is %s' %
+                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
-    def get_info(self, instance):
-        # TODO: implement it
-        state = power_state.NOSTATE
+    def destroy(self, context, instance, network_info, block_device_info=None,
+                destroy_disks=True, migrate_data=None):
+        LOG.debug('[aws nova driver] destroy: %s' % instance.uuid)
+        vapp_name = self._get_vm_name(instance)
         try:
-            vm_name = self._get_vm_name(instance)
-#             vapp_status = self._vcloud_client.get_vcloud_vapp_status(vapp_name)
-#             state = status_dict_vapp_to_instance.get(vapp_status)
+            self._provider_client.delete(instance, vapp_name)
         except Exception as e:
-            LOG.info('can not find the VM %s' % e)
-
-        return {'state': state,
-                'max_mem': 0,
-                'mem': 0,
-                'num_cpu': 1,
-                'cpu_time': 0}
+            LOG.error('delete failed, %s' % e)
 
     def get_available_nodes(self, refresh=False):
         return [self._node_name]

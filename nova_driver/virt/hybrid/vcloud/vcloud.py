@@ -15,9 +15,9 @@
 from nova_driver.virt.hybrid.vcloud import exceptions
 from oslo.utils import excutils
 from oslo.vmware.common import loopingcall
-from oslo.utils import excutils
+from nova.compute import power_state
 from nova.openstack.common import log as logging
-from nova.i18n import _, _LW, _LE
+from nova.i18n import _LW, _LE
 from threading import Lock
 import requests
 from requests import exceptions as requests_excep
@@ -60,6 +60,31 @@ class VCLOUD_STATUS:
     TRANSFER_TIMEOUT = 17
     VAPP_UNDEPLOYED = 18
     VAPP_PARTIALLY_DEPLOYED = 19
+
+STATUS_DICT_VAPP_TO_INSTANCE = {
+    VCLOUD_STATUS.FAILED_CREATION: power_state.CRASHED,
+    VCLOUD_STATUS.UNRESOLVED: power_state.BUILDING,
+    VCLOUD_STATUS.RESOLVED: power_state.BUILDING,
+    VCLOUD_STATUS.DEPLOYED: power_state.NOSTATE,
+    VCLOUD_STATUS.SUSPENDED: power_state.SUSPENDED,
+    VCLOUD_STATUS.POWERED_ON: power_state.RUNNING,
+    VCLOUD_STATUS.WAITING_FOR_INPUT: power_state.NOSTATE,
+    VCLOUD_STATUS.UNKNOWN: power_state.NOSTATE,
+    VCLOUD_STATUS.UNRECOGNIZED: power_state.NOSTATE,
+    VCLOUD_STATUS.POWERED_OFF: power_state.SHUTDOWN,
+    VCLOUD_STATUS.INCONSISTENT_STATE: power_state.NOSTATE,
+    VCLOUD_STATUS.MIXED: power_state.NOSTATE,
+    VCLOUD_STATUS.DESCRIPTOR_PENDING: power_state.NOSTATE,
+    VCLOUD_STATUS.COPYING_CONTENTS: power_state.NOSTATE,
+    VCLOUD_STATUS.DISK_CONTENTS_PENDING: power_state.NOSTATE,
+    VCLOUD_STATUS.QUARANTINED: power_state.NOSTATE,
+    VCLOUD_STATUS.QUARANTINE_EXPIRED: power_state.NOSTATE,
+    VCLOUD_STATUS.REJECTED: power_state.NOSTATE,
+    VCLOUD_STATUS.TRANSFER_TIMEOUT: power_state.NOSTATE,
+    VCLOUD_STATUS.VAPP_UNDEPLOYED: power_state.NOSTATE,
+    VCLOUD_STATUS.VAPP_PARTIALLY_DEPLOYED: power_state.NOSTATE,
+}
+
 
 
 

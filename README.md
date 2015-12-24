@@ -89,8 +89,6 @@ provider = aws or vcloud
 conversion_dir = /opt/stack/data/hybridcloud
 volumes_dir = /opt/stack/data/hybridcloud
 vm_naming_rule = openstack_vm_id
-provider_mgnt_network = ##name of mgmt net or id##
-provider_data_network = ##name of data net or id##
 
 [aws]
 access_key_id = ## AWS access key id ##
@@ -99,7 +97,9 @@ region_name = ## region name ##
 s3_bucket_tmp = ## s3 tmp bucket for image upload ##
 flavor_map = m1.nano:t2.micro, m1.micro:t2.micro, m1.tiny:t2.micro, m1.small:t2.micro, m1.medium:t2.micro, m1.large:t2.micro, m1.xlarge:t2.micro
 security_group_mgnt_network = ## mgmt security group id subnet ##
+mgnt_network = ##name of mgmt net or id##
 security_group_data_network = ## data security group id subnet ##
+data_network = ##name of data net or id##
 
 [vcloud]
 node_name=##node description name##
@@ -110,6 +110,8 @@ vdc = ##vcloud vdc##
 org = ##vcloud org##
 flavor_map = m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large:1, m1.xlarge:1
 metadata_iso_catalog = metadata-isos
+mgnt_network = ##name of mgmt net or id##
+data_network = ##name of data net or id##
 ```
 - copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
 - copy the base-aws.vmx file to the folder /opt/stack/data/hybridcloud/vmx

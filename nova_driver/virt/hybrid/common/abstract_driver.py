@@ -16,20 +16,18 @@
 A Fake Nova Driver implementing all method with logs
 """
 import os
-import shutil
-import subprocess
-
 
 from nova import image
-from nova.openstack.common import fileutils
+
+from nova.compute import power_state
+
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
+
 from nova.virt import driver
+
 from nova.volume.cinder import API as cinder_api
 
-from nova_driver.virt.hybrid.common import common_tools
-from nova_driver.virt.hybrid.common import util
-from nova_driver.virt.hybrid.common import hybrid_task_states
 from nova_driver.virt.hybrid.common import hyper_agent_api
 
 from oslo.config import cfg
@@ -56,16 +54,20 @@ hybrid_driver_opts = [
                default='openstack_vm_id',
                help='the rule to name VMs in the provider, valid options:'
                'openstack_vm_id, openstack_vm_name, cascaded_openstack_rule'),
-    cfg.StrOpt('provider_mgnt_network',
-               help='The network name/id of the management provider network.'),
-    cfg.StrOpt('provider_data_network',
-               help='The network name/id of the data provider network.'),
 ]
 
 
 cfg.CONF.register_opts(hybrid_driver_opts, 'hybrid_driver')
 
 
+class InstanceStateUpdater(object):
+
+    def __init__(self, instance):
+        self._instance = instance
+
+    def __call__(self, task_state):
+        self._instance.task_state = task_state
+        self._instance.save()
 
 class AbstractHybridNovaDriver(driver.ComputeDriver):
     """The VCloud host connection object."""
@@ -121,102 +123,6 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
     def _update_vm_task_state(self, instance, task_state):
         instance.task_state = task_state
         instance.save()
-
-    def _download_image(self,
-                        context,
-                        instance,
-                        image_meta):
-        conversion_dir = self._get_conversion_dir(instance)
-        fileutils.ensure_tree(conversion_dir)
-        os.chdir(conversion_dir)
-        image_uuid = self._get_image_uuid(image_meta)
-
-        dest_file_name = self.conversion_dir + '/' + image_uuid
-        if not os.path.exists(dest_file_name):
-            orig_file_name = conversion_dir + '/' + image_uuid + '.tmp'
-            LOG.debug("Begin download image file %s " %(image_uuid))
-            self._update_vm_task_state(
-                instance,
-                task_state=hybrid_task_states.DOWNLOADING)
-    
-            metadata = IMAGE_API.get(context, image_uuid)
-            file_size = int(metadata['size'])
-            read_iter = IMAGE_API.download(context, image_uuid)
-            glance_file_handle = util.GlanceFileRead(read_iter)
-    
-            orig_file_handle = fileutils.file_open(orig_file_name, "wb")
-    
-            util.start_transfer(context,
-                                glance_file_handle,
-                                file_size,
-                                write_file_handle=orig_file_handle,
-                                task_state=hybrid_task_states.DOWNLOADING,
-                                instance=instance)
-            # move to dest_file_name
-            shutil.move(orig_file_name, dest_file_name)
-
-    def _convert_to_vmdk(self,
-                         context,
-                         instance,
-                         image_meta):
-        image_uuid = self._get_image_uuid(image_meta)
-        conversion_dir = self._get_conversion_dir(instance)
-        converted_file_name = '%s/converted-file.vmdk' % conversion_dir
-        orig_file_name  = '%s/%s' % (self.conversion_dir, image_uuid)
-        image_vmdk_file_name = '%s/%s.vmdk' % (self.conversion_dir, image_uuid)
-
-        # check if the image or volume vmdk cached
-        if os.path.exists(image_vmdk_file_name):
-            # if image cached, link the image file to conversion dir
-            os.link(image_vmdk_file_name, converted_file_name)
-        else:
-            LOG.debug("Begin download image file %s " %(image_uuid))
-
-            metadata = IMAGE_API.get(context, image_uuid)
-
-            # convert to vmdk
-            self._update_vm_task_state(
-                instance,
-                task_state=hybrid_task_states.CONVERTING)
-
-            common_tools.convert_vm(metadata['disk_format'],
-                                    orig_file_name,
-                                    'vmdk',
-                                    converted_file_name)
-
-            shutil.move(converted_file_name, image_vmdk_file_name)
-            os.link(image_vmdk_file_name, converted_file_name)
-
-    def _convert_vmdk_to_ovf(self, instance, vmx_name):
-        conversion_dir = self._get_conversion_dir(instance)
-        vm_task_state = instance.task_state
-        self._update_vm_task_state(
-            instance,
-            task_state=hybrid_task_states.PACKING)
-
-        vmx_file_dir = '%s/%s' % (self.conversion_dir,'vmx')
-        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, vmx_name)
-        vmx_full_name = '%s/%s' % (conversion_dir, vmx_name)
-        
-        LOG.debug("copy vmx_cache file %s to vmx_full_name %s" % (
-            vmx_cache_full_name, vmx_full_name))
-        shutil.copy2(vmx_cache_full_name, vmx_full_name)
-        
-        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s" % (
-            vmx_cache_full_name, vmx_full_name))
-
-        ovf_name = '%s/%s.ovf' % (conversion_dir, instance.uuid)
-
-        mk_ovf_cmd = 'ovftool -o %s %s' % (vmx_full_name, ovf_name)
-
-        LOG.debug("begin run command %s" % mk_ovf_cmd)
-        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True) 
-        LOG.debug("end run command %s" % mk_ovf_cmd)
-
-        if mk_ovf_result != 0:
-            LOG.error('make ovf failed!')
-            self._update_vm_task_state(instance, task_state=vm_task_state)
-        return ovf_name
 
     def spawn(self,
               context,
@@ -487,6 +393,20 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
     def change_instance_metadata(self, context, instance, diff):
         LOG.debug("change_instance_metadata")
+
+    def get_info(self, instance):
+        state = power_state.NOSTATE
+        try:
+            vm_name = self._get_vm_name(instance)
+            state = self._provider_client.get_vm_status(instance, vm_name)
+        except Exception as e:
+            LOG.info('can not find the vapp %s' % e)
+
+        return {'state': state,
+                'max_mem': 0,
+                'mem': 0,
+                'num_cpu': 1,
+                'cpu_time': 0}
 
     def plug_vifs(self, instance, network_info):
         LOG.debug("plug_vifs")

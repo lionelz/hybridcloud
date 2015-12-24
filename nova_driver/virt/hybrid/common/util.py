@@ -243,7 +243,7 @@ class ThreadSafePipe(queue.LightQueue):
         pass
         
 def start_transfer(context, read_file_handle, data_size,
-        write_file_handle=None, image_id=None, image_meta=None,task_state=None,instance=None):
+        write_file_handle=None, image_id=None, image_meta=None,task_state=None,callback=None):
     """Start the data transfer from the reader to the writer.
     Reader writes to the pipe and the writer reads from the pipe. This means
     that the total transfer time boils down to the slower of the read/write
@@ -278,7 +278,10 @@ def start_transfer(context, read_file_handle, data_size,
     write_event = write_thread.start()
     
     if  task_state:
-        progressReportThread = ProgressReportThread(thread_safe_pipe,instance,data_size,task_state)
+        progressReportThread = ProgressReportThread(thread_safe_pipe,
+                                                    callback,
+                                                    data_size,
+                                                    task_state)
         progressReportThread.start()
         
     try:
@@ -327,9 +330,9 @@ def download_file_in_new_thread(remote_url, local_filename):
 class ProgressReportThread(object):
     """Class that report the task progress"""
     
-    def __init__(self,threadSafePipe,instance,total_size,task_state):
+    def __init__(self, threadSafePipe, callback, total_size, task_state):
         self.threadSafePipe = threadSafePipe
-        self.instance = instance
+        self.callback = callback
         self.total_size = total_size
         self.task_state = task_state
         self._running = False
@@ -351,8 +354,9 @@ class ProgressReportThread(object):
                         self.done.send(True)
                         continue
                     progress="%.0f%%" % (transferred_size/self.total_size * 100)
-                    self.instance.task_state  = self.task_state +'(' + progress + ')'
-                    self.instance.save()
+                    if self.callback:
+                        self.callback(task_state="%s (%s)" % (self.task_state,
+                                                              progress))
                     greenthread.sleep(PROGRESS_REPORT_THREAD_SLEEP_TIME)
                 except Exception as exc:
                     self.stop()
