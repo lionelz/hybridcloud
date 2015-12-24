@@ -16,8 +16,8 @@ function get_ip {
 
 # set eth0 gateway
 ip route del 0/0
-eth0_ip=`ip -o -4 a | grep eth0 | awk -e '{print $4}' | cut -f1 -d'/'`
-route add default gw $eth0_ip
+eth1_ip=`ip -o -4 a | grep eth1 | awk -e '{print $4}' | cut -f1 -d'/'`
+route add default gw $eth1_ip
 route -n
 
 USER_DATA=`curl http://169.254.169.254/latest/user-data/`
