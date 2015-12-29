@@ -2,7 +2,7 @@
 description "Hyper Agent Clean-up"
 author "Lionel Zerbib <lionel.zerbib@huawei.com>"
 
-start on started hypervm-config
+start on started neutron-ovs-cleanup
 
 pre-start script
   [ ! -x /usr/bin/hyper-agent-cleanup ] && exit 0

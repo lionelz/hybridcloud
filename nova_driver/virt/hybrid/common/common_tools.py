@@ -14,8 +14,13 @@ def create_user_data_iso(iso_name, user_data, work_dir):
     with open("%s/userdata.txt" % iso_dir, "w+") as f:
         for k, v in user_data.iteritems():
             f.write("%s=%s\n" % (k, v))
+    with open("%s/user-data" % iso_dir, "w+") as f:
+        f.write("\n")
+    with open("%s/meta-data" % iso_dir, "w+") as f:
+        f.write("\n")
     subprocess.call(
-        "genisoimage -o %s %s" % (full_iso_name, iso_dir), shell=True)
+        "genisoimage -volid cidata -joliet -rock -o %s %s" % (full_iso_name, iso_dir),
+        shell=True)
     shutil.rmtree(iso_dir, ignore_errors=True)
     return full_iso_name
 
