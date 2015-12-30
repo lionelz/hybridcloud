@@ -54,8 +54,6 @@ done
 # etc hyper-agent conf
 rm -rf /etc/hybridcloud
 cp -r $FROM_DIR/etc/hybridcloud /etc
-rm /etc/hybridcloud/hyper-agent.conf.hypernode.tmpl
-mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hybridcloud/hyper-agent.conf.tmpl
 
 # neutron template
 rm -rf `find /etc/neutron -name "*.tmpl"`
