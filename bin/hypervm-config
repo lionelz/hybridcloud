@@ -48,8 +48,8 @@ for d in $CONF_DIRS; do
    done;
 done;
 
-echo $host > /etc/hostname
-hostname $host
-grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
-echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
-cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts
+# echo $host > /etc/hostname
+# hostname $host
+# grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
+# echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
+# cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts

@@ -75,6 +75,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
         vmx_name = 'base-aws.vmx'
         inst_st_up = abstract_driver.InstanceStateUpdater(instance)
+        vm_name = self._get_vm_name(instance)
         if not self._image_exists_in_provider(image_meta):
             with image_convertor.ImageConvertorToOvf(
                 context,
@@ -100,7 +101,6 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                         file_names += [file_name]
                     
                 # import the file as a new AMI image
-                vm_name = self._get_vm_name(instance)
                 self._provider_client.import_image(
                     vm_name,
                     file_names,
@@ -109,22 +109,21 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                     self._get_image_uuid(image_meta)
                 )
             
-            # launch the VM with 2 networks
-            vm_flavor_name = instance.get_flavor().name
-            instance_type = cfg.CONF.aws.flavor_map[vm_flavor_name]
-            image_uuid = self._get_image_uuid(image_meta)
-            vm_name = self._get_vm_name(instance)
-            self._provider_client.create_instance(
-                instance=instance,
-                name=vm_name,
-                image_uuid=image_uuid,
-                user_metadata=self._get_user_metadata(instance),
-                instance_type=instance_type,
-                mgnt_net=cfg.CONF.aws.mgnt_network,
-                mgnt_sec_group=cfg.CONF.aws.security_group_mgnt_network,
-                data_net=cfg.CONF.aws.data_network,
-                data_sec_group=cfg.CONF.aws.security_group_data_network
-            )
+        # launch the VM with 2 networks
+        vm_flavor_name = instance.get_flavor().name
+        instance_type = cfg.CONF.aws.flavor_map[vm_flavor_name]
+        image_uuid = self._get_image_uuid(image_meta)
+        self._provider_client.create_instance(
+            instance=instance,
+            name=vm_name,
+            image_uuid=image_uuid,
+            user_metadata=self._get_user_metadata(instance),
+            instance_type=instance_type,
+            mgnt_net=cfg.CONF.aws.mgnt_network,
+            mgnt_sec_group=cfg.CONF.aws.security_group_mgnt_network,
+            data_net=cfg.CONF.aws.data_network,
+            data_sec_group=cfg.CONF.aws.security_group_data_network
+        )
         LOG.info('end time of aws create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 

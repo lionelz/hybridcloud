@@ -197,13 +197,11 @@ class AWSClient(provider_client.ProviderClient):
                     'DeviceIndex': 0,
                     'SubnetId': mgnt_net,
                     'Groups': [mgnt_sec_group],
-                    'AssociatePublicIpAddress': True
                 },
                 {
                     'DeviceIndex': 1,
                     'SubnetId': data_net,
                     'Groups': [data_sec_group],
-                    'AssociatePublicIpAddress': True
                 }
             ],
         )
