@@ -45,7 +45,7 @@ done
 
 # init conf
 rm -f /etc/init/hyper*
-cp -r $FROM_DIR/etc/init /etc/init
+cp -r $FROM_DIR/etc/init/* /etc/init
 
 # etc hyper-agent conf
 rm -rf /etc/hybridcloud
