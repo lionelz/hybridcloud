@@ -8,8 +8,8 @@ edit_sysctl () {
     REPLACEMENT_VALUE=$2
     CONFIG_FILE=/etc/sysctl.conf
     if grep -q "^[ ^I]*$TARGET_KEY[ ^I]*=" "$CONFIG_FILE"; then
-        sed -i -e "s^A^\\([ ^I]*$TARGET_KEY[ ^I]*=[ ^I]*\\).*$^A\\1$REPLACEMENT_VALUE^A" "$CONFIG_FILE"
-    else
+        sed -i -e "s/\($TARGET_KEY *= *\).*/\1$REPLACEMENT_VALUE/" $CONFIG_FILE
+   else
         echo "$TARGET_KEY = $REPLACEMENT_VALUE" >> "$CONFIG_FILE"
     fi
 }
