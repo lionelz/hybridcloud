@@ -8,6 +8,7 @@ $DIR/install_common.sh
 rm -f /etc/init/hypernode-config.conf
 rm -f /etc/init/hyper-agent-cleanup.conf 
 cp $FROM_DIR/etc/init/hyper-agent-cleanup.conf.hypervm /etc/init/hyper-agent-cleanup.conf
+rm -f /etc/init/hyper-agent-cleanup.conf.*
 
 rm /etc/hybridcloud/hyper-agent.conf.hypernode.tmpl
 mv /etc/hybridcloud/hyper-agent.conf.hypervm.tmpl /etc/hybridcloud/hyper-agent.conf.tmpl
