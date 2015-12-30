@@ -44,12 +44,8 @@ do
 done
 
 # init conf
-init_conf_files='hyper-agent.conf hypervm-config.conf hypernode-config.conf'
-for f in $init_conf_files
-do
-    rm -f /etc/init/$f
-    cp $FROM_DIR/etc/init/$f /etc/init
-done
+rm -f /etc/init/hyper*
+cp -r $FROM_DIR/etc/init /etc/init
 
 # etc hyper-agent conf
 rm -rf /etc/hybridcloud

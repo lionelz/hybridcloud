@@ -5,7 +5,7 @@ set -x
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 $DIR/install_common.sh
 
-rm -f /etc/init/hypervm-config.conf
+rm -f /etc/init/hypernode-config.conf
 rm -f /etc/init/hyper-agent-cleanup.conf 
 cp $FROM_DIR/etc/init/hyper-agent-cleanup.conf.hypervm /etc/init/hyper-agent-cleanup.conf
 
