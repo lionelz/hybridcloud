@@ -118,11 +118,18 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
         LOG.info('begin time of vcloud create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+        for vif in network_info:
+            LOG.debug('vif: %s' % vif)
         conversion_dir = self._get_conversion_dir(instance)
         vm_flavor_name = instance.get_flavor().name
         vcloud_flavor_id = cfg.CONF.vcloud.flavor_map[vm_flavor_name]
         vmx_name = 'base-%s.vmx' % vcloud_flavor_id
+        # choose a default template if it's a specific one is not present
+        if not os.path.exists('%s/vmx/%s' % (self.conversion_dir, vmx_name)):
+            vmx_name = 'base-template.vmx'
         inst_st_up = abstract_driver.InstanceStateUpdater(instance)
+        
+        LOG.debug('image_meta=%s' % image_meta)
 
         with image_convertor.ImageConvertorToOvf(
                  context,
@@ -130,6 +137,10 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                  instance.uuid,
                  self._get_image_uuid(image_meta),
                  vmx_name,
+                 {'eth0-present': True,
+                  'eth1-present': True,
+                  'dvd0-present': True,
+                  'dvd0': 'userdata.iso'},
                  inst_st_up,
                  instance.task_state) as img_conv:
             # download the image
@@ -137,8 +148,8 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
             # create metadata iso and upload to vcloud: move to provider driver
             iso_file = common_tools.create_user_data_iso(
-                "userdata.iso",
-                self._get_user_metadata(instance),
+                'userdata.iso',
+                self._get_user_metadata(instance, image_meta),
                 conversion_dir)
             vapp_name = self._get_vm_name(instance)
             metadata_iso = self._provider_client.upload_metadata_iso(
@@ -320,6 +331,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         LOG.debug("plug_vifs")
         # TODO: retrieve provider info ips/macs for vcloud
         for vif in network_info:
+            LOG.debug('vif: %s' % vif)
             self.hyper_agent_api.plug(instance.uuid, vif, None)
 
     def unplug_vifs(self, instance, network_info):

@@ -73,7 +73,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
               block_device_info=None):
         LOG.info('begin time of aws create vm is %s' %
                   (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-        vmx_name = 'base-aws.vmx'
+        vmx_name = 'base-template.vmx'
         inst_st_up = abstract_driver.InstanceStateUpdater(instance)
         vm_name = self._get_vm_name(instance)
         if not self._image_exists_in_provider(image_meta):
@@ -83,6 +83,8 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                 instance.uuid,
                 self._get_image_uuid(image_meta),
                 vmx_name,
+                {'eth0-present': True,
+                 'eth1-present': True},
                 inst_st_up,
                 instance.task_state) as img_conv:
 
@@ -117,7 +119,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
             instance=instance,
             name=vm_name,
             image_uuid=image_uuid,
-            user_metadata=self._get_user_metadata(instance),
+            user_metadata=self._get_user_metadata(instance, image_meta),
             instance_type=instance_type,
             mgnt_net=cfg.CONF.aws.mgnt_network,
             mgnt_sec_group=cfg.CONF.aws.security_group_mgnt_network,

@@ -56,3 +56,13 @@ def convert_vm(src_format, src_file, dst_format, dst_file):
         if convert_result != 0:
             LOG.error('convert %s to %s failed' % (src_format, dst_format))
 
+def copy_replace(src, dst, rep_dict):
+    '''
+       use only for small files
+    '''
+    with open(src, 'r') as myfile:
+        src_content = myfile.read()
+    for k, v in rep_dict.iteritems():
+        src_content = src_content.replace('${%s}' % k, v)
+    with open(dst, 'w') as myfile:
+        myfile.write(src_content)

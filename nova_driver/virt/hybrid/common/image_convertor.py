@@ -21,7 +21,8 @@ class ImageConvertorToOvf(object):
                  work_dir,
                  uuid,
                  image_uuid,
-                 vmx_name,
+                 vmx_template_name,
+                 vmx_template_params,
                  callback,
                  task_state):
         self._context = context
@@ -29,7 +30,22 @@ class ImageConvertorToOvf(object):
         self._work_dir = work_dir
         self._uuid = uuid
         self._conversion_dir = "%s/%s" % (work_dir, uuid)
-        self._vmx_name = vmx_name
+        self._vmx_template_name = vmx_template_name
+        self._vmx_template_params = vmx_template_params
+        self._converted_file_name = 'converted-file'
+        # vmx_template_params
+        # disk0, eth0-present, eth1-present,
+        # eth2-present, vmname, dvd0-present, dvd0
+        self._vmx_template_params['disk0'] = self._converted_file_name
+        self._vmx_template_params['vmname'] = self._uuid
+        for k in ('eth0-present',
+                  'eth1-present',
+                  'eth2-present',
+                  'dvd0-present'):
+            if self._vmx_template_params.get(k):
+                self._vmx_template_params[k] = 'TRUE'
+            else:
+                self._vmx_template_params[k] = 'FALSE'
         self._callback = callback
         self._task_state = task_state
 
@@ -46,7 +62,8 @@ class ImageConvertorToOvf(object):
     def _convert_to_vmdk(self):
         self._callback(task_state=hybrid_task_states.CONVERTING)
 
-        converted_file_name = '%s/converted-file.vmdk' % self._conversion_dir
+        converted_file_name = '%s/%s.vmdk' % (self._conversion_dir,
+                                              self._converted_file_name)
         orig_file_name  = '%s/%s' % (self._work_dir, self._image_uuid)
         image_vmdk_file_name = '%s/%s.vmdk' % (self._work_dir, self._image_uuid)
 
@@ -74,15 +91,16 @@ class ImageConvertorToOvf(object):
         self._callback(task_state=hybrid_task_states.PACKING)
 
         vmx_file_dir = '%s/%s' % (self._work_dir, 'vmx')
-        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, self._vmx_name)
-        vmx_full_name = '%s/%s' % (self._conversion_dir, self._vmx_name)
+        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, self._vmx_template_name)
+        vmx_full_name = '%s/%s' % (self._conversion_dir, self._vmx_template_name)
         
-        LOG.debug("copy vmx_cache file %s to vmx_full_name %s" % (
-            vmx_cache_full_name, vmx_full_name))
-        shutil.copy2(vmx_cache_full_name, vmx_full_name)
-        
-        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s" % (
-            vmx_cache_full_name, vmx_full_name))
+        LOG.debug("copy vmx_cache file %s to vmx_full_name %s with %s" % (
+            vmx_cache_full_name, vmx_full_name, self._vmx_template_params))
+        common_tools.copy_replace(vmx_cache_full_name,
+                                  vmx_full_name,
+                                  self._vmx_template_params)
+        LOG.debug("end copy vmx_cache file %s to vmx_full_name %s with %s" % (
+            vmx_cache_full_name, vmx_full_name, self._vmx_template_params))
 
         ovf_name = '%s/%s.ovf' % (self._conversion_dir, self._uuid)
 

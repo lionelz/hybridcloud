@@ -41,7 +41,6 @@ cfg.CONF.register_opts(hyper_node_agent_opts, 'hyperagent')
 LOG = logging.getLogger(__name__)
 NIC_NAME_LEN = hypervm_vif.NIC_NAME_LEN
 
-# TODO: test it after refactoring
 class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hypernode networking."""
     

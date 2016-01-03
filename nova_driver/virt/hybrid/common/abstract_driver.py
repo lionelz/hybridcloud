@@ -94,6 +94,11 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         return self.instances.keys()
 
     def _get_image_uuid(self, image_meta):
+        if 'properties' in image_meta:
+            props = image_meta.get('properties')
+            if 'agent_type' in props and props['agent_type'] == 'container':
+                if 'container_image_uuid' in props:
+                    return props['container_image_uuid']
         if 'id' in image_meta:
             # create from image
             image_uuid = image_meta['id']
@@ -102,17 +107,25 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             image_uuid = image_meta['properties']['image_id']
         return image_uuid
 
-    def _get_user_metadata(self, instance):
+    def _get_user_metadata(self, instance, image_meta):
         rabbit_host = cfg.CONF.rabbit_host
         if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
             rabbit_host =cfg.CONF.rabbit_hosts[0]
         if ':' in rabbit_host:
             rabbit_host = rabbit_host[0:rabbit_host.find(':')]
-        return {"rabbit_userid": cfg.CONF.rabbit_userid,
-                 "rabbit_password": cfg.CONF.rabbit_password,
-                 "rabbit_host": rabbit_host,
-                 "host": instance.uuid}
-        
+        user_metada =  {
+            "rabbit_userid": cfg.CONF.rabbit_userid,
+            "rabbit_password": cfg.CONF.rabbit_password,
+            "rabbit_host": rabbit_host,
+            "host": instance.uuid
+        }
+        if 'properties' in image_meta:
+            props = image_meta.get('properties')
+            if 'containter_image_uri' in props:
+                user_metada += {
+                    "containter_image_uri": props['containter_image_uri']
+                }
+        return user_metada
 
     def _get_conversion_dir(self, instance):
         return '%s/%s' % (self.conversion_dir, instance.uuid)
