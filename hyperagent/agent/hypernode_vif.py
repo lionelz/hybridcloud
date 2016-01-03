@@ -52,7 +52,6 @@ class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
         self.cidr = cfg.CONF.hyperagent.network_cidr
         self.gw_ip = cfg.CONF.hyperagent.default_gw
         self.create_ovs_br()
-        super(HyperNodeVIFDriver, self).__init__(instance_id, call_back)
 
     def startup_init(self):
         vifs_for_inst = self.call_back.get_vifs_for_hyper_node(self.instance_id)
