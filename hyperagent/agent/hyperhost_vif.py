@@ -34,13 +34,13 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hyper host networking."""
     
     def __init__(self, instance_id=None, call_back=None):
-        super(HyperHostVIFDriver, self).__init__()
+        super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
 
     def startup_init(self):
         self.container_init()
-        super.startup_init()
-        self.lxd.start(self.instance_id, 100)
+        super(HyperHostVIFDriver, self).startup_init()
+        self.lxd.start('c' + self.instance_id, 100)
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def plug(self, instance_id, hyper_vif, provider_vif):
@@ -62,7 +62,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
                                 }
                             }
                          }
-        self.lxd.container_update(instance_id, eth_vif_config)
+        self.lxd.container_update('c' + instance_id, eth_vif_config)
         
 
     @lockutils.synchronized('hyperhost-plug-unplug')
@@ -75,7 +75,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         container_info = self.get_container_info()
         container_name = self.instance_id
         container_alias = container_info['alias']
-        container_config = {'name': container_name,
+        container_config = {'name': 'c' + container_name,
                             'profiles': ['null_profile'],
                             'source': {'type': 'image',
                                        'alias':container_alias}}

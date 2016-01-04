@@ -140,7 +140,9 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                  {'eth0-present': True,
                   'eth1-present': True,
                   'dvd0-present': True,
-                  'dvd0': 'userdata.iso'},
+                  'dvd0': 'userdata.iso',
+                  'memsize': instance.get_flavor().memory_mb,
+                  'cpu': instance.get_flavor().vcpus},
                  inst_st_up,
                  instance.task_state) as img_conv:
             # download the image
@@ -181,15 +183,6 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                 LOG.debug('vapp status: %s' % vapp_status)
                 retry_times = retry_times - 1
 
-            if vmx_name == 'base-template.vmx':
-                # set the cpu and memory according to the flavor
-                if self._provider_client.modify_vm_cpu(
-                        vapp_name, instance.get_flavor().vcpus):
-                    LOG.info("modified %s cpu success" % vapp_name)
-                if self._provider_client.modify_vm_memory(
-                        vapp_name, instance.get_flavor().memory_mb):
-                    LOG.info("modified %s memory success" % vapp_name)
-    
             # mount it
             self._provider_client.insert_media(vapp_name, metadata_iso)
     

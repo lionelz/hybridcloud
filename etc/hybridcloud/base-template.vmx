@@ -3,6 +3,8 @@ config.version = "8"
 virtualHW.version = "10"
 
 nvram = "${vmname}.nvram"
+memsize = "${memsize}"
+sched.cpu.min = "${cpu}"
 
 pciBridge0.present = "TRUE"
 pciBridge4.present = "TRUE"

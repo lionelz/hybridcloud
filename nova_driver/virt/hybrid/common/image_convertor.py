@@ -46,6 +46,13 @@ class ImageConvertorToOvf(object):
                 self._vmx_template_params[k] = 'TRUE'
             else:
                 self._vmx_template_params[k] = 'FALSE'
+        if not 'cpu' in self._vmx_template_params:
+            self._vmx_template_params['cpu'] = 1
+        if not 'memsize' in self._vmx_template_params:
+            self._vmx_template_params['memsize'] = 1024
+        # be sure that the memory is multiple of 4
+        memsize = int(self._vmx_template_params['memsize'])
+        self._vmx_template_params['memsize'] = memsize / 4 * 4
         self._callback = callback
         self._task_state = task_state
 

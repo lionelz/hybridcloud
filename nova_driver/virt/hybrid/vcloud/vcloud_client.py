@@ -226,26 +226,6 @@ class VCloudClient(provider_client.ProviderClient):
             self._session.wait_for_task(task)
             return True
         
-    def modify_vm_cpu(self, vapp_name, cpus):
-        the_vapp = self._get_vcloud_vapp(vapp_name)
-        task = the_vapp.modify_vm_cpu(vapp_name, cpus)
-        if not task:
-            raise exception.NovaException(
-                "Unable to modify vm %s cpu" % vapp_name)
-        else:
-            self._session.wait_for_task(task)
-            return True
-
-    def modify_vm_memory(self, vapp_name, mem):
-        the_vapp = self._get_vcloud_vapp(vapp_name)
-        task = the_vapp.modify_vm_memory(vapp_name, mem)
-        if not task:
-            raise exception.NovaException(
-                "Unable to modify vm %s memory" % vapp_name)
-        else:
-            self._session.wait_for_task(task)
-            return True
-
     def insert_media(self, vapp_name, iso_file):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.vm_media(vapp_name, iso_file, 'insert')
