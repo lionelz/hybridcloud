@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 
 class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hyper host networking."""
-    
+
     def __init__(self, instance_id=None, call_back=None):
         super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
@@ -54,16 +54,16 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         # set MTU
         hu.set_device_mtu(vnic_veth, 1400)
         container_nic_name = self._container_device_name( hyper_vif )
-        eth_vif_config = {'devices': 
+        eth_vif_config = {'devices':
                             { container_nic_name:
                                 { 'type':'nic',
                                   'nictype': 'physical',
-                                  'parent': vnic_veth  
+                                  'parent': vnic_veth
                                 }
                             }
                          }
         self.lxd.container_update('c' + instance_id, eth_vif_config)
-        
+
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def unplug(self, hyper_vif):
