@@ -413,7 +413,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             vm_name = self._get_vm_name(instance)
             state = self._provider_client.get_vm_status(instance, vm_name)
         except Exception as e:
-            LOG.info('can not find the vapp %s' % e)
+            LOG.info('can not get info for VM %s:' % (instance.uuid, e))
 
         return {'state': state,
                 'max_mem': 0,

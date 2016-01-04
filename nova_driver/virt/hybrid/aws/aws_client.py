@@ -19,18 +19,18 @@ LOG = logging.getLogger(__name__)
 
 
 class NodeState(object):
-    RUNNING = 0
-    TERMINATED = 2
-    PENDING = 3
-    UNKNOWN = 4
-    STOPPED = 5
+    RUNNING = 16
+    PENDING = 0
+    STOPPING = 64
+    STOPPED = 80
+    TERMINATED = 48
     
 AWS_POWER_STATE = {
     NodeState.RUNNING: power_state.RUNNING,
-    NodeState.TERMINATED: power_state.CRASHED,
     NodeState.PENDING: power_state.BUILDING,
-    NodeState.UNKNOWN: power_state.NOSTATE,
+    NodeState.STOPPING: power_state.SHUTDOWN,              
     NodeState.STOPPED: power_state.SHUTDOWN,              
+    NodeState.TERMINATED: power_state.CRASHED,              
 }
 
 
@@ -185,7 +185,7 @@ class AWSClient(provider_client.ProviderClient):
             user_data = '%s\n%s=%s' % (user_data, k, v)
 
         # create the instance
-        res = self.ec2_resource.create_instances(
+        aws_instance = self.ec2_resource.create_instances(
             ImageId=image_id,
             MinCount=1,
             MaxCount=1,
@@ -204,23 +204,16 @@ class AWSClient(provider_client.ProviderClient):
                     'Groups': [data_sec_group],
                 }
             ],
-        )
-        instance_id = ''
-        for inst in res:
-            instance_id = inst.id
+        )[0]
+        instance_id = aws_instance.id
 
-        waiter = self.ec2.get_waiter('instance_exists')
-        waiter.wait(InstanceIds=[instance_id])
-
-        # TODO: check the result
         self.ec2.create_tags(Resources=[instance_id],
                              Tags=[{'Key': 'hybrid_cloud_instance_id',
                                     'Value': instance.uuid},
-                                   {'Key': 'name',
+                                   {'Key': 'Name',
                                     'Value': name}])
 
-        waiter = self.ec2.get_waiter('instance_running')
-        waiter.wait(InstanceIds=[instance_id])
+        aws_instance.wait_until_running()
 
     
     def is_exists_image(self, image_uuid):
@@ -234,31 +227,36 @@ class AWSClient(provider_client.ProviderClient):
 
     def _get_instances(self, instance):
         return self.ec2_resource.instances.filter(Filters=[{
-            'Name': 'tag:hybrid_cloud_image_id',
+            'Name': 'tag:hybrid_cloud_instance_id',
             'Values': [instance.uuid]}])
         
     def get_vm_status(self, instance, vapp_name):
         instances = self._get_instances(instance)
-        for instance in instances:
-            return AWS_POWER_STATE[instance.state]
+        for aws_instance in instances:
+            LOG.debug('aws_instance: %s' % aws_instance.__dict__)
+            LOG.debug('aws_instance.state: %s' % aws_instance.state)
+            return AWS_POWER_STATE[aws_instance.state.get('Code')]
 
     def power_off(self, instance, name):
         instances = self._get_instances(instance)
-        for instance in instances:
-            instance.stop()
+        for aws_instance in instances:
+            aws_instance.stop()
         
     def power_on(self, instance, name):
         instances = self._get_instances(instance)
-        for instance in instances:
-            instance.start()
+        for aws_instance in instances:
+            aws_instance.start()
 
     def delete(self, instance, name):
         instances = self._get_instances(instance)
-        for instance in instances:
-            instance.terminate()
+        for aws_instance in instances:
+            aws_instance.stop()
+            aws_instance.wait_until_stopped()
+            aws_instance.terminate()
+            aws_instance.wait_until_terminated()
 
     def reboot(self, instance, name):
         instances = self._get_instances(instance)
-        for instance in instances:
-            instance.reboot()
+        for aws_instance in instances:
+            aws_instance.reboot()
 
