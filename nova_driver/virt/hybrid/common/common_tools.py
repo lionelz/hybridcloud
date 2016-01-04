@@ -63,6 +63,6 @@ def copy_replace(src, dst, rep_dict):
     with open(src, 'r') as myfile:
         src_content = myfile.read()
     for k, v in rep_dict.iteritems():
-        src_content = src_content.replace('${%s}' % k, v)
+        src_content = src_content.replace('${%s}' % str(k), str(v))
     with open(dst, 'w') as myfile:
         myfile.write(src_content)
