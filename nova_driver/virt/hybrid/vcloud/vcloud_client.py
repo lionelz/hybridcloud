@@ -236,6 +236,16 @@ class VCloudClient(provider_client.ProviderClient):
             self._session.wait_for_task(task)
             return True
 
+    def modify_vm_memory(self, vapp_name, mem):
+        the_vapp = self._get_vcloud_vapp(vapp_name)
+        task = the_vapp.modify_vm_memory(vapp_name, mem)
+        if not task:
+            raise exception.NovaException(
+                "Unable to modify vm %s memory" % vapp_name)
+        else:
+            self._session.wait_for_task(task)
+            return True
+
     def insert_media(self, vapp_name, iso_file):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.vm_media(vapp_name, iso_file, 'insert')
@@ -247,8 +257,8 @@ class VCloudClient(provider_client.ProviderClient):
             return True
 
     def upload_vm(self, ovf_name, vapp_name, mgnt_net, data_net):
-        cmd = ('ovftool --net:"vmnetwork-0=%s"'
-               ' --net:"vmnetwork-1=%s"'
+        cmd = ('ovftool --net:"mgnt-network=%s"'
+               ' --net:"data-network=%s"'
                ' %s "vcloud://%s:%s@%s?org=%s&vdc=%s&vapp=%s"' %
                (mgnt_net,
                 data_net,

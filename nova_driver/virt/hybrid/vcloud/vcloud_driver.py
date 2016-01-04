@@ -180,12 +180,15 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                                                                   vapp_name)
                 LOG.debug('vapp status: %s' % vapp_status)
                 retry_times = retry_times - 1
-    
-            # modified cpu
-            if(instance.get_flavor().vcpus != 1):
+
+            if vmx_name == 'base-template.vmx':
+                # set the cpu and memory according to the flavor
                 if self._provider_client.modify_vm_cpu(
                         vapp_name, instance.get_flavor().vcpus):
                     LOG.info("modified %s cpu success" % vapp_name)
+                if self._provider_client.modify_vm_memory(
+                        vapp_name, instance.get_flavor().memory_mb):
+                    LOG.info("modified %s memory success" % vapp_name)
     
             # mount it
             self._provider_client.insert_media(vapp_name, metadata_iso)
