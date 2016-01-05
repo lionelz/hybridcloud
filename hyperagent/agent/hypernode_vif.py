@@ -43,7 +43,7 @@ NIC_NAME_LEN = hypervm_vif.NIC_NAME_LEN
 
 class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hypernode networking."""
-    
+
     def __init__(self, instance_id=None, call_back=None):
         super(HyperNodeVIFDriver, self).__init__()
         self.br_trans = cfg.CONF.hyperagent.translation_bridge
