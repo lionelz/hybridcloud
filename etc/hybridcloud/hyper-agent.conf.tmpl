@@ -8,9 +8,13 @@ state_path = /var/run/hybridcloud
 rabbit_userid = ##rabbit_userid##
 rabbit_password = ##rabbit_password##
 rabbit_host = ##rabbit_host##
-hyper_agent_vif_driver = ### vif driver implementation ###
+hyper_agent_vif_driver = ##hyper_agent_vif_driver##
 
 [amqp1]
 trace = true
 
 [hyperagent]
+network_mngt_interface = ##network_mngt_interface##
+network_data_interface = ##network_data_interface##
+network_vm_interface = ##network_vm_interface##
+container_image_uri = ##container_image_uri##

@@ -98,10 +98,8 @@ class VCloudClient(provider_client.ProviderClient):
         return vcloud.STATUS_DICT_VAPP_TO_INSTANCE[
             self._get_vcloud_vapp(name).me.status]
 
-    @vcloud.RetryDecorator(max_retry_count=10,
-                           exceptions=exception.NovaException)
     def power_off(self, instance, name):
-        expected_vapp_status = 8
+        expected_vapp_status = vcloud.VCLOUD_STATUS.POWERED_OFF
         the_vapp = self._get_vcloud_vapp(name)
         vapp_status = self._get_status_first_vm(the_vapp)
         if vapp_status == expected_vapp_status:
@@ -113,14 +111,8 @@ class VCloudClient(provider_client.ProviderClient):
                 "power off vapp failed, task")
         self._session.wait_for_task(task_stop)
 
-        retry_times = 60
-        while vapp_status != expected_vapp_status and retry_times > 0:
-            time.sleep(3)
-            the_vapp = self._get_vcloud_vapp(name)
-            vapp_status = self._get_status_first_vm(the_vapp)
-            LOG.debug('During power off vapp_name: %s, %s' %
-                      (name, vapp_status))
-            retry_times -= 1
+        self.wait_for_status(instance, name, expected_vapp_status)
+
         return the_vapp
 
     def _get_status_first_vm(self, the_vapp):
@@ -131,14 +123,22 @@ class VCloudClient(provider_client.ProviderClient):
                 return vm.get_status()
         return None
 
-        
-    @vcloud.RetryDecorator(max_retry_count=10,
-                           exceptions=exception.NovaException)
+    def wait_for_status(self, instance, vapp_name, expected_vapp_status):
+        vapp_status = self._get_vcloud_vapp(vapp_name).me.status
+        LOG.debug('vapp status: %s' % vapp_status)
+        retry_times = 100
+        while vapp_status != expected_vapp_status and retry_times > 0:
+            time.sleep(10)
+            vapp_status = self._get_vcloud_vapp(vapp_name).me.status
+            LOG.debug('vapp status: %s, expected: %s, it remains %s tries' % (
+                vapp_status, expected_vapp_status, retry_times))
+            retry_times = retry_times - 1
+
     def power_on(self, instance, name):
         the_vapp = self._get_vcloud_vapp(name)
 
         vapp_status = self._get_status_first_vm(the_vapp)
-        expected_vapp_status = 4
+        expected_vapp_status = vcloud.VCLOUD_STATUS.POWERED_ON
         if vapp_status == expected_vapp_status:
             return the_vapp
 
@@ -148,14 +148,8 @@ class VCloudClient(provider_client.ProviderClient):
                 "power on vapp failed, task")
         self._session.wait_for_task(task)
 
-        retry_times = 60
-        while vapp_status != expected_vapp_status and retry_times > 0:
-            time.sleep(3)
-            the_vapp = self._get_vcloud_vapp(name)
-            vapp_status = self._get_status_first_vm(the_vapp)
-            LOG.debug('During power on vapp_name: %s, %s' %
-                      (name, vapp_status))
-            retry_times -= 1
+        self.wait_for_status(instance, name, expected_vapp_status)
+
         return the_vapp
 
     def delete(self, instance, name):
@@ -202,8 +196,6 @@ class VCloudClient(provider_client.ProviderClient):
                 "get vmdk file url failed")
         return referenced_file_url
 
-    @vcloud.RetryDecorator(max_retry_count=16,
-                           exceptions=exception.NovaException)
     def attach_disk_to_vm(self, vapp_name, disk_ref):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.attach_disk_to_vm(vapp_name, disk_ref)
@@ -214,8 +206,6 @@ class VCloudClient(provider_client.ProviderClient):
             self._session.wait_for_task(task)
             return True
     
-    @vcloud.RetryDecorator(max_retry_count=16,
-                           exceptions=exception.NovaException)
     def detach_disk_from_vm(self, vapp_name, disk_ref):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.detach_disk_from_vm(vapp_name, disk_ref)

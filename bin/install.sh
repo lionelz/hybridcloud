@@ -26,7 +26,7 @@ apt-get -y dist-upgrade
 apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
 apt-get --no-install-recommends -y install python-nova
 
-FROM_DIR=`pwd`
+FROM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
 PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 
 # hyper agent python packages
@@ -36,7 +36,7 @@ cp -r $FROM_DIR/hyperagent $PYTHON_PKG_DIR
 cp -r $FROM_DIR/hyperagent.egg-info $PYTHON_PKG_DIR/hyperagent-0.0.2.egg-info
 
 # binaries
-bin_files='hyper-agent hyper-agent-cleanup hyper-agent-rootwrap hypervm-config hypernode-config'
+bin_files='hyper-agent hyper-agent-cleanup hyper-agent-rootwrap hypervm-config'
 for f in $bin_files
 do
     rm -f /usr/bin/$f

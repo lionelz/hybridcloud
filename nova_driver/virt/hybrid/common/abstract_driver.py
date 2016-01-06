@@ -114,17 +114,30 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         if ':' in rabbit_host:
             rabbit_host = rabbit_host[0:rabbit_host.find(':')]
         user_metada =  {
-            "rabbit_userid": cfg.CONF.rabbit_userid,
-            "rabbit_password": cfg.CONF.rabbit_password,
-            "rabbit_host": rabbit_host,
-            "host": instance.uuid
+            'rabbit_userid': cfg.CONF.rabbit_userid,
+            'rabbit_password': cfg.CONF.rabbit_password,
+            'rabbit_host': rabbit_host,
+            'host': instance.uuid,
+            # be careful to create the VM with the interface in a good order
+            'network_mngt_interface': 'eth0',
+            'network_data_interface': 'eth1',
+            'network_vm_interface': 'eth2',
         }
+        hyper_agent_vif_driver = 'hyperagent.agent.hypervm_vif.HyperVMVIFDriver'
         if 'properties' in image_meta:
             props = image_meta.get('properties')
+            if 'agent_type' in props:
+                if props['agent_type'] == 'node':
+                    hyper_agent_vif_driver = (
+                        'hyperagent.agent.hypervm_vif.HyperNodeVIFDriver')
+                if props['agent_type'] == 'host':
+                    hyper_agent_vif_driver = (
+                        'hyperagent.agent.hypervm_vif.HyperHostVIFDriver')
             if 'containter_image_uri' in props:
-                user_metada += {
-                    "containter_image_uri": props['containter_image_uri']
-                }
+                user_metada['containter_image_uri'] = (
+                    props['containter_image_uri']
+                )
+        user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
         return user_metada
 
     def _get_conversion_dir(self, instance):
@@ -413,7 +426,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             vm_name = self._get_vm_name(instance)
             state = self._provider_client.get_vm_status(instance, vm_name)
         except Exception as e:
-            LOG.info('can not get info for VM %s:' % (instance.uuid, e))
+            LOG.info('can not get info for VM %s: %s' % (instance.uuid, e))
 
         return {'state': state,
                 'max_mem': 0,

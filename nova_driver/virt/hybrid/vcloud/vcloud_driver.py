@@ -32,8 +32,8 @@ from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import hybrid_task_states
 from nova_driver.virt.hybrid.common import image_convertor
 from nova_driver.virt.hybrid.common import util
-from nova_driver.virt.hybrid.vcloud.vcloud import VCLOUD_STATUS
-from nova_driver.virt.hybrid.vcloud.vcloud_client import VCloudClient
+from nova_driver.virt.hybrid.vcloud import vcloud
+from nova_driver.virt.hybrid.vcloud import vcloud_client
 
 vcloud_driver_opts = [
     cfg.StrOpt('node_name',
@@ -103,7 +103,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
     def __init__(self, virtapi, scheme="https"):
         self._node_name = cfg.CONF.vcloud.node_name
-        self._provider_client = VCloudClient(scheme=scheme)
+        self._provider_client = vcloud_client.VCloudClient(scheme=scheme)
 
         super(VCloudDriver, self).__init__(virtapi)
 
@@ -170,19 +170,10 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                 cfg.CONF.vcloud.data_network)
     
             inst_st_up(task_state=hybrid_task_states.VM_CREATING)
-            expected_vapp_status = VCLOUD_STATUS.POWERED_OFF
-    
-            vapp_status = self._provider_client.get_vm_status(instance,
-                                                              vapp_name)
-            LOG.debug('vapp status: %s' % vapp_status)
-            retry_times = 60
-            while vapp_status != expected_vapp_status and retry_times > 0:
-                time.sleep(3)
-                vapp_status = self._provider_client.get_vm_status(instance,
-                                                                  vapp_name)
-                LOG.debug('vapp status: %s' % vapp_status)
-                retry_times = retry_times - 1
-
+            self._provider_client.wait_for_status(
+                instance,
+                vapp_name,
+                vcloud.VCLOUD_STATUS.POWERED_OFF)
             # mount it
             self._provider_client.insert_media(vapp_name, metadata_iso)
     
