@@ -35,7 +35,7 @@ class API(object):
             kwargs = {'run_as_root': True}
             for k, v in props.iteritems():
                 if k != 'type':
-                    cmd += ['%s=%s' % (k, v)] 
+                    cmd += ['%s=%s' % (k, v)]
             hu.execute(*cmd, **kwargs)
 
     def profile_create(self, profile):
@@ -44,13 +44,30 @@ class API(object):
                    check_exit_code=False,
                    run_as_root=True)
         hu.execute('lxc', 'profile', 'create',
-                   profile['name'], 
+                   profile['name'],
                    run_as_root=True)
         for k, v in profile['config'].iteritems():
             hu.execute('lxc', 'profile', 'set',
                        profile['name'],
-                       k, v, 
+                       k, v,
                        run_as_root=True)
+
+    def container_running(self, container):
+        cli_res = hu.execute('lxc', 'info', container,
+                check_exit_code = False)
+        result = []
+        status = False
+        index = None
+        for x in cli_res:
+            if x != '':
+                 result = re.sub('\n',' ', x).split(' ')
+        if len (result) != 0:
+            index = result.index("Status:")
+            if index is not None:
+                index +=1
+                Status = result[index] == "Running"
+        return Status
+
 
 
 if __name__ == "__main__":
@@ -63,7 +80,9 @@ if __name__ == "__main__":
     lxd.destroy(container_name, 100)
     container_alias = container_info['alias']
     container_config = {'name': container_name, 'profiles': ['null_profile'],
-                        'source': { 'type': 'image', 'alias':container_alias } } 
+                        'source': { 'type': 'image', 'alias':container_alias } }
+    print ("container %s is running %s") %
+        (container_name,lxd.container_running(container_name))
     lxd.container_init(container_config)
     print('container initted')
     hu.execute('ip', 'link', 'add', 'vvv1', 'type', 'veth',
@@ -71,11 +90,12 @@ if __name__ == "__main__":
     for dev in ['vvv1', 'vvv2']:
         hu.execute('ip', 'link', 'set', dev, 'up')
 
-    eth_vif_config = {'devices': 
+
+    eth_vif_config = {'devices':
                         { 'eth0':
                             { 'type':'nic',
                               'nictype': 'physical',
-                              'parent': 'vvv2'  
+                              'parent': 'vvv2'
                             }
                         }
                      }
