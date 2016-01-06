@@ -32,10 +32,11 @@ LOG = logging.getLogger(__name__)
 
 class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hyper host networking."""
-    
+
     def __init__(self, instance_id=None, call_back=None):
         super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
+        self.nics = {}
 
     def startup_init(self):
         self.container_init()
@@ -54,19 +55,23 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         # set MTU
         hu.set_device_mtu(vnic_veth, 1400)
         container_nic_name = self._container_device_name( hyper_vif )
-        eth_vif_config = {'devices': 
+        eth_vif_config = {'devices':
                             { container_nic_name:
                                 { 'type':'nic',
                                   'nictype': 'physical',
-                                  'parent': vnic_veth  
+                                  'parent': vnic_veth
                                 }
                             }
                          }
         self.lxd.container_update('c' + instance_id, eth_vif_config)
-        
+
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def unplug(self, hyper_vif):
+        key_to_remove = [ key for key, value in self.nics.iteritems()
+                          if value == hyper_vif['address'] ]
+        for key in keys_to_remove:
+            del self.nics[key]
         self.driverImpl.unplug(hyper_vif)
 
     def container_init(self):
@@ -85,4 +90,9 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         return {'alias':'trusty'}
 
     def _container_device_name( self, hyper_vif ):
-        return 'eth0'
+        index = 0
+        if bool(self.nics) is True:
+            index = max(self.nics.values())
+            index += 1
+        self.nics[index] = hyper_vif['address']
+        return  "eth%d" % index
