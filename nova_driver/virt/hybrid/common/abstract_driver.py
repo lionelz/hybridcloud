@@ -129,10 +129,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             if 'agent_type' in props:
                 if props['agent_type'] == 'node':
                     hyper_agent_vif_driver = (
-                        'hyperagent.agent.hypervm_vif.HyperNodeVIFDriver')
+                        'hyperagent.agent.hypernode_vif.HyperNodeVIFDriver')
                 if props['agent_type'] == 'host':
                     hyper_agent_vif_driver = (
-                        'hyperagent.agent.hypervm_vif.HyperHostVIFDriver')
+                        'hyperagent.agent.hyperhost_vif.HyperHostVIFDriver')
             if 'containter_image_uri' in props:
                 user_metada['containter_image_uri'] = (
                     props['containter_image_uri']

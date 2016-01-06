@@ -2,7 +2,7 @@
 set -x
 
 CONF_DIRS="/etc/neutron /etc/hybridcloud"
-PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip"
+PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vm_interface container_image_uri"
 
 function get_user_data {
     # get user data from 169.254.169.254
@@ -17,17 +17,12 @@ function get_user_data {
 mkdir /media/metadata
 mount -o user,exec,utf8 -t iso9660 /dev/sr0 /media/metadata
 
-if [ $? -eq 0 ]; then
-    if [ -f "/media/metadata/userdata.txt" ]
-    then
-        source /media/metadata/userdata.txt
-    else
-        # get the metadata from 169.254.169.254
-        echo "a cdrom is present but no user data file"
-        # try to read for user data from 169.254.169.254
-        get_user_data
-    fi
+if [ -f "/media/metadata/userdata.txt" ]
+then
+    source /media/metadata/userdata.txt
 else
+    # get the metadata from 169.254.169.254
+    echo "a cdrom is present but no user data file"
     # try to read for user data from 169.254.169.254
     get_user_data
 fi
@@ -49,8 +44,8 @@ for d in $CONF_DIRS; do
    done;
 done;
 
-# echo $host > /etc/hostname
-# hostname $host
-# grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
-# echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
-# cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts
+echo $host > /etc/hostname
+hostname $host
+grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
+echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
+cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts
