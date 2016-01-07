@@ -10,6 +10,7 @@ sudo apt-get update && apt-get upgrade
 - Install git 
 ```
 sudo apt-get install git
+```
 
 - get devstack, juno version (eol)
 ```
