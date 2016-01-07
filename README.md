@@ -3,6 +3,14 @@
 ## Devstack all-in-one installation with vcloud nova driver
 
 - Based on ubuntu server 14.04 installation
+- intialy update apt database
+```
+sudo apt-get update && apt-get upgrade
+
+- Install git 
+```
+sudo apt-get install git
+
 - get devstack, juno version (eol)
 ```
 git clone https://github.com/openstack-dev/devstack.git
@@ -18,7 +26,7 @@ git clone https://github.com/lionelz/hybridcloud.git
      - must be run before the stack script
      - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
-sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev
+sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev python-pip
 sudo pip install pyvcloud==10
 ```
 - Install boto3 for aws access 
@@ -37,7 +45,7 @@ export PYTHONPATH=/opt/stack/hybridcloud
 - local.conf configuration sample
 ```
 [[local|localrc]]
-HOST_IP=##your data interface host ip##
+HOST_IP=##your mgmt interface host ip##
 LOGFILE=$DEST/logs/stack.sh.log
 
 ADMIN_PASSWORD=stack
@@ -78,7 +86,10 @@ REQUIREMENTS_BRANCH=juno-eol
 [[post-config|/$Q_PLUGIN_CONF_FILE]]
 [vxlan]
 enable_vxlan = True
-local_ip = ##your managment interface host ip##
+local_ip = ##your data interface host ip##
+[ovs]
+enable_tunneling = True
+local_ip = ##your data interface host ip##
 
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
