@@ -6,7 +6,7 @@
 - intialy update apt database
 ```
 sudo apt-get update && apt-get upgrade
-
+```
 - Install git 
 ```
 sudo apt-get install git
@@ -97,7 +97,7 @@ local_ip = ##your data interface host ip##
 compute_driver = nova_driver.virt.hybrid.HybridDriver
 
 [hybrid_driver]
-provider = aws or vcloud
+provider = ###aws or vcloud###
 conversion_dir = /opt/stack/data/hybridcloud
 volumes_dir = /opt/stack/data/hybridcloud
 vm_naming_rule = openstack_vm_id
