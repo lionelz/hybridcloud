@@ -11,7 +11,6 @@
 #    under the License.
 
 import os
-import socket
 import sys
 
 from oslo import messaging
@@ -27,28 +26,12 @@ messaging.set_transport_defaults(control_exchange='hyperagent')
 
 LOG = logging.getLogger(__name__)
 
-
-core_opts = [
-    cfg.StrOpt('host', default=socket.gethostname(),
-               help=_("Hostname to be used by the neutron server, agents and "
-                      "services running on this machine. All the agents and "
-                      "services running on this machine must use the same "
-                      "host value.")),
-    cfg.IntOpt('ovs_vsctl_timeout',
-               default=120,
-               help='Amount of time, in seconds, that ovs_vsctl should wait '
-                    'for a response from the database. 0 is to wait forever.'),
-    cfg.StrOpt('rootwrap_config',
-               default="/etc/hyperagent/rootwrap.conf",
-               help='Path to the rootwrap configuration file to use for '
-                    'running commands as root'),
-    cfg.IntOpt('network_device_mtu',
-               default=9001,
-               help='the default MTU for each network interface created'),
-]
-
-# Register the configuration options
-cfg.CONF.register_opts(core_opts)
+# import the configuration options
+cfg.CONF.import_opt('host', 'nova.netconf')
+cfg.CONF.import_opt('rootwrap_config', 'nova.utils')
+cfg.CONF.set_default('rootwrap_config', '/etc/hyperagent/rootwrap.conf')
+cfg.CONF.import_opt('ovs_vsctl_timeout', 'nova.network.linux_net')
+cfg.CONF.import_opt('network_device_mtu', 'nova.network.linux_net')
 
 ROOT_HELPER_OPTS = [
     cfg.StrOpt('root_helper', default='sudo',

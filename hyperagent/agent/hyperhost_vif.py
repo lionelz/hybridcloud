@@ -14,21 +14,22 @@ from oslo.config import cfg
 from hyperagent.agent import hyper_agent_utils as hu
 from hyperagent.agent import hypervm_vif
 from hyperagent.agent import lxd_driver
+from hyperagent.common import container_image
 
 from nova.openstack.common import lockutils
 from nova.openstack.common import log as logging
 
 hyper_host_opts = [
-    cfg.StrOpt('container_image',
-               default='local://?alias=trusty',
+    cfg.StrOpt('container_image_uri',
+               default='local://trusty',
                help='Container image uri'),
 ]
 
 
 cfg.CONF.register_opts(hyper_host_opts, 'hyperagent')
 
-
 LOG = logging.getLogger(__name__)
+
 
 class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hyper host networking."""
@@ -37,20 +38,30 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
         self.nics = {}
+        self.container_name = 'c' + self.instance_id
+        self.container_image_uri = cfg.hyperagent.container_image_uri
+        self.container_image = container_image.get_container_image(
+            self.container_image_uri)
 
     def startup_init(self):
-        self.container_init()
-        super(HyperHostVIFDriver, self).startup_init()
-        if self.lxd.container_running( 'c' + self.instance_id ):
+        # download the image
+        if not self.lxd.container_defined(self.container_name):
+            if not self.container_image.defined():
+                self.container_image.upload()
+            self.container_init()
+        if self.lxd.container_running(self.container_name):
             return
-        self.lxd.start('c' + self.instance_id, 100 )
+        # remove all eth config for the container
+        self.lxd.container_update(self.container_name, {})
+        super(HyperHostVIFDriver, self).startup_init()
+        self.lxd.container_start(self.container_name, 100)
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def plug(self, instance_id, hyper_vif, provider_vif):
         LOG.debug("hyper_vif=%s" % hyper_vif)
         LOG.debug("provider_vif=%s" % provider_vif)
         vnic_veth = self.create_br_vnic(instance_id, hyper_vif)
-        #set mac address on device
+        # set mac address on device
         hu.execute('ip', 'link', 'set', vnic_veth,
                            'address', hyper_vif['address'],
                            run_as_root=True)
@@ -65,24 +76,23 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
                                 }
                             }
                          }
-        self.lxd.container_update('c' + instance_id, eth_vif_config)
+        self.lxd.container_update(self.container_name, eth_vif_config)
 
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def unplug(self, hyper_vif):
-        key_to_remove = [ key for key, value in self.nics.iteritems()
+        keys_to_remove = [ key for key, value in self.nics.iteritems()
                           if value == hyper_vif['address'] ]
         for key in keys_to_remove:
             del self.nics[key]
         self.driverImpl.unplug(hyper_vif)
 
     def container_init(self):
-        null_profile = { 'config':{}, 'name': 'null_profile'}
+        null_profile = {'config':{}, 'name': 'null_profile'}
         self.lxd.profile_create(null_profile)
         container_info = self.get_container_info()
-        container_name = self.instance_id
         container_alias = container_info['alias']
-        container_config = {'name': 'c' + container_name,
+        container_config = {'name': self.container_name,
                             'profiles': ['null_profile'],
                             'source': {'type': 'image',
                                        'alias':container_alias}}

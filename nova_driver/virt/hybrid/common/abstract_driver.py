@@ -11,11 +11,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 """
-A Fake Nova Driver implementing all method with logs
+An abstract hybrid Nova Driver implementing the common methods
 """
 import os
+import urlparse
 
 from nova import image
 
@@ -99,13 +99,15 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             if 'agent_type' in props and props['agent_type'] == 'container':
                 if 'container_image_uuid' in props:
                     return props['container_image_uuid']
+        return self._get_my_image_uuid(image_meta)
+
+    def _get_my_image_uuid(self, image_meta):
         if 'id' in image_meta:
             # create from image
-            image_uuid = image_meta['id']
+            return image_meta['id']
         else:
             # create from volume
-            image_uuid = image_meta['properties']['image_id']
-        return image_uuid
+            return image_meta['properties']['image_id']
 
     def _get_user_metadata(self, instance, image_meta):
         rabbit_host = cfg.CONF.rabbit_host
@@ -134,9 +136,24 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                     hyper_agent_vif_driver = (
                         'hyperagent.agent.hyperhost_vif.HyperHostVIFDriver')
             if 'containter_image_uri' in props:
-                user_metada['containter_image_uri'] = (
-                    props['containter_image_uri']
-                )
+                # 'glance://demo:stack@${glance_host}:${glance_port}/?'
+                # '&image_uuid=${image_uuid}'
+                # '&project_name=demo'
+                # '&auth_url=${auth_url}'
+                # '&scheme=${scheme}'
+                g_api = urlparse.urlparse(cfg.glance.api_servers)
+                ps = {
+                    'glance_api_servers': cfg.glance.api_servers,
+                    'glance_host': g_api.hostname,
+                    'glance_port': g_api.port,
+                    'image_uuid': self._get_my_image_uuid(image_meta),
+                    'auth_url': cfg.keystone_authtoken.auth_uri,
+                    'scheme': g_api.scheme
+                }
+                curi = props['containter_image_uri']
+                for k, v in ps:
+                    curi = curi.replace('${%s}' % k, v)
+                user_metada['containter_image_uri'] = curi
         user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
         return user_metada
 
