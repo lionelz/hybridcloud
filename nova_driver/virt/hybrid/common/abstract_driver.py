@@ -60,6 +60,9 @@ hybrid_driver_opts = [
 
 
 cfg.CONF.register_opts(hybrid_driver_opts, 'hybrid_driver')
+cfg.CONF.import_opt('auth_uri',
+                    'keystoneclient.middleware.auth_token',
+                    'keystone_authtoken')
 
 
 class InstanceStateUpdater(object):
@@ -98,9 +101,8 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
     def _get_image_uuid(self, image_meta):
         if 'properties' in image_meta:
             props = image_meta.get('properties')
-            if 'agent_type' in props and props['agent_type'] == 'container':
-                if 'container_image_uuid' in props:
-                    return props['container_image_uuid']
+            if 'container_image_uuid' in props:
+                return props['container_image_uuid']
         return self._get_my_image_uuid(image_meta)
 
     def _get_my_image_uuid(self, image_meta):
@@ -139,24 +141,26 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                         'hyperagent.agent.hyperhost_vif.HyperHostVIFDriver')
             if 'container_image_uri' in props:
                 # 'glance://demo:stack@${glance_host}:${glance_port}/?'
-                # '&${image_uuid}'
+                # '${image_uuid}'
                 # '&project_name=demo'
                 # '&${auth_url}'
                 # '&${scheme}'
-                g_api = urlparse.urlparse(cfg.glance.api_servers)
+                g_api = urlparse.urlparse(cfg.CONF.glance.api_servers[0])
                 ps = {
-                    'glance_api_servers': cfg.glance.api_servers,
+                    'glance_api_servers': cfg.CONF.glance.api_servers[0],
                     'glance_host': g_api.hostname,
                     'glance_port': g_api.port,
                     'image_uuid': self._get_my_image_uuid(image_meta),
-                    'auth_url': cfg.keystone_authtoken.auth_uri,
+                    'auth_url': cfg.CONF.keystone_authtoken.auth_uri,
                     'scheme': g_api.scheme
                 }
                 curi = props['container_image_uri']
-                for k, v in ps:
-                    curi = curi.replace('${%s}' % k, '%s=%s' % (k, quote(v)))
+                for k, v in ps.iteritems():
+                    curi = curi.replace('${%s}' % k,
+                                        '%s=%s' % (k, quote(str(v))))
                 user_metada['container_image_uri'] = curi
         user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
+        LOG.debug('user_metada=%s' % user_metada)
         return user_metada
 
     def _get_conversion_dir(self, instance):
