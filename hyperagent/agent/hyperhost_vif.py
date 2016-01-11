@@ -43,7 +43,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         super(HyperHostVIFDriver, self).startup_init()
         if self.lxd.container_running( 'c' + self.instance_id ):
             return
-        self.lxd.start('c' + self.instance_id, 100)
+        self.lxd.start('c' + self.instance_id, 100 )
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def plug(self, instance_id, hyper_vif, provider_vif):

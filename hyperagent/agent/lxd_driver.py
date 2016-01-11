@@ -1,5 +1,5 @@
 from hyperagent.agent import hyper_agent_utils as hu
-
+import re
 
 class API(object):
 
@@ -81,10 +81,8 @@ if __name__ == "__main__":
     container_alias = container_info['alias']
     container_config = {'name': container_name, 'profiles': ['null_profile'],
                         'source': { 'type': 'image', 'alias':container_alias } }
-    print ("container %s is running %s") %
-        (container_name,lxd.container_running(container_name))
     lxd.container_init(container_config)
-    print('container initted')
+    print('container init has been executed')
     hu.execute('ip', 'link', 'add', 'vvv1', 'type', 'veth',
                'peer', 'name', 'vvv2', check_exit_code=False)
     for dev in ['vvv1', 'vvv2']:
