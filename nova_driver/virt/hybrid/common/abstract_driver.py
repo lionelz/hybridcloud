@@ -146,18 +146,22 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                 # '&${auth_url}'
                 # '&${scheme}'
                 g_api = urlparse.urlparse(cfg.CONF.glance.api_servers[0])
-                ps = {
-                    'glance_api_servers': cfg.CONF.glance.api_servers[0],
-                    'glance_host': g_api.hostname,
-                    'glance_port': g_api.port,
+                prop_s = {
                     'image_uuid': self._get_my_image_uuid(image_meta),
                     'auth_url': cfg.CONF.keystone_authtoken.auth_uri,
                     'scheme': g_api.scheme
                 }
                 curi = props['container_image_uri']
-                for k, v in ps.iteritems():
+                for k, v in prop_s.iteritems():
                     curi = curi.replace('${%s}' % k,
                                         '%s=%s' % (k, quote(str(v))))
+                simple_s = {
+                    'glance_api_servers': cfg.CONF.glance.api_servers[0],
+                    'glance_host': g_api.hostname,
+                    'glance_port': g_api.port,
+                }
+                for k, v in simple_s.iteritems():
+                    curi = curi.replace('${%s}' % k, '%s' % str(v))
                 user_metada['container_image_uri'] = curi
         user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
         LOG.debug('user_metada=%s' % user_metada)
