@@ -32,6 +32,8 @@ from nova_driver.virt.hybrid.common import hyper_agent_api
 
 from oslo.config import cfg
 
+from urllib import quote
+
 LOG = logging.getLogger(__name__)
 
 
@@ -132,15 +134,15 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                 if props['agent_type'] == 'node':
                     hyper_agent_vif_driver = (
                         'hyperagent.agent.hypernode_vif.HyperNodeVIFDriver')
-                if props['agent_type'] == 'host':
+                if props['agent_type'] in ['lxd_host', 'lxd']:
                     hyper_agent_vif_driver = (
                         'hyperagent.agent.hyperhost_vif.HyperHostVIFDriver')
-            if 'containter_image_uri' in props:
+            if 'container_image_uri' in props:
                 # 'glance://demo:stack@${glance_host}:${glance_port}/?'
-                # '&image_uuid=${image_uuid}'
+                # '&${image_uuid}'
                 # '&project_name=demo'
-                # '&auth_url=${auth_url}'
-                # '&scheme=${scheme}'
+                # '&${auth_url}'
+                # '&${scheme}'
                 g_api = urlparse.urlparse(cfg.glance.api_servers)
                 ps = {
                     'glance_api_servers': cfg.glance.api_servers,
@@ -150,10 +152,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                     'auth_url': cfg.keystone_authtoken.auth_uri,
                     'scheme': g_api.scheme
                 }
-                curi = props['containter_image_uri']
+                curi = props['container_image_uri']
                 for k, v in ps:
-                    curi = curi.replace('${%s}' % k, v)
-                user_metada['containter_image_uri'] = curi
+                    curi = curi.replace('${%s}' % k, '%s=%s' % (k, quote(v)))
+                user_metada['container_image_uri'] = curi
         user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
         return user_metada
 
