@@ -74,6 +74,7 @@ class InstanceStateUpdater(object):
         self._instance.task_state = task_state
         self._instance.save()
 
+
 class AbstractHybridNovaDriver(driver.ComputeDriver):
     """The VCloud host connection object."""
 
@@ -116,10 +117,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
     def _get_user_metadata(self, instance, image_meta):
         rabbit_host = cfg.CONF.rabbit_host
         if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
-            rabbit_host =cfg.CONF.rabbit_hosts[0]
+            rabbit_host = cfg.CONF.rabbit_hosts[0]
         if ':' in rabbit_host:
             rabbit_host = rabbit_host[0:rabbit_host.find(':')]
-        user_metada =  {
+        user_metada = {
             'rabbit_userid': cfg.CONF.rabbit_userid,
             'rabbit_password': cfg.CONF.rabbit_password,
             'rabbit_host': rabbit_host,
@@ -129,7 +130,9 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             'network_data_interface': 'eth1',
             'network_vm_interface': 'eth2',
         }
-        hyper_agent_vif_driver = 'hyperagent.agent.hypervm_vif.HyperVMVIFDriver'
+        hyper_agent_vif_driver = (
+            'hyperagent.agent.hypervm_vif.HyperVMVIFDriver'
+        )
         if 'properties' in image_meta:
             props = image_meta.get('properties')
             if 'agent_type' in props:
@@ -169,7 +172,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
     def _get_conversion_dir(self, instance):
         return '%s/%s' % (self.conversion_dir, instance.uuid)
-        
+
     def _image_exists_in_provider(self, image_meta):
         return False
 
@@ -198,7 +201,6 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             self._provider_client.reboot(name)
         except Exception as e:
             LOG.error('reboot instance %s failed, %s' % (name, e))
-
 
     def set_admin_password(self, instance, new_pass):
         LOG.debug("set_admin_password")
@@ -247,7 +249,6 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
     def power_on(self, context, instance, network_info, block_device_info):
         name = self._get_vm_name(instance)
         self._provider_client.power_on(instance, name)
-
 
     def soft_delete(self, instance):
         LOG.debug("soft_delete")
@@ -477,4 +478,3 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             return instance.display_name
         else:
             return instance.uuid
-

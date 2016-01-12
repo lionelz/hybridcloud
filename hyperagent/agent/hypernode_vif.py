@@ -37,6 +37,7 @@ cfg.CONF.register_opts(hyper_node_agent_opts, 'hyperagent')
 LOG = logging.getLogger(__name__)
 NIC_NAME_LEN = hypervm_vif.NIC_NAME_LEN
 
+
 class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
     """VIF driver for hypernode networking."""
 
@@ -45,7 +46,8 @@ class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
         self.vm_nic = cfg.CONF.hyperagent.network_vm_interface
 
     def startup_init(self):
-        vifs_for_inst = self.call_back.get_vifs_for_hyper_node(self.instance_id)
+        vifs_for_inst = self.call_back.get_vifs_for_hyper_node(
+            self.instance_id)
         hyper_net_info = vifs_for_inst.get('hyper_net_info')
         provider_net_info = vifs_for_inst.get('provider_net_info')
         for hyper_vif, provider_vif in zip(hyper_net_info, provider_net_info):
@@ -81,8 +83,8 @@ class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
     def plug(self, instance_id, hyper_vif, provider_vif):
         LOG.debug("hyper_vif=%s" % hyper_vif)
         LOG.debug("provider_vif=%s" % provider_vif)
-        provider_ip = provider_vif.get('ip')
-        h_ns_veth = self.create_br_vnic(instance_id, hyper_vif)
+        # provider_ip = provider_vif.get('ip')
+        # h_ns_veth = self.create_br_vnic(instance_id, hyper_vif)
 
     @lockutils.synchronized('hypernode-plug-unplug')
     def unplug(self, hyper_vif):
@@ -105,6 +107,6 @@ class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
 
         # remove the flows....
         hu.execute('ovs-ofctl', 'del-flows', self.br_trans,
-                   'cookie=%(tvo_port)s/-1' % { 'tvo_port': tvo_port},
+                   'cookie=%(tvo_port)s/-1' % {'tvo_port': tvo_port},
                    check_exit_code=False,
                    run_as_root=True)

@@ -42,7 +42,7 @@ LOG = logging.getLogger(__name__)
 IMAGE_API = image.API()
 IO_THREAD_SLEEP_TIME = .01
 GLANCE_POLL_INTERVAL = 5
-PROGRESS_REPORT_THREAD_SLEEP_TIME =3
+PROGRESS_REPORT_THREAD_SLEEP_TIME = 3
 
 READ_CHUNKSIZE = 65536
 QUEUE_BUFFER_SIZE = 10
@@ -77,10 +77,10 @@ class GlanceFileRead(object):
 
 
 class HybridFileHandle(file):
-    
+
     def __init__(self, *args):
         self.file = open(*args)
-    
+
     def read(self, *args, **kwargs):
         return self.file.read(READ_CHUNKSIZE)
 
@@ -91,7 +91,7 @@ class GlanceWriteThread(object):
     """
 
     def __init__(self, context, input, image_id,
-            image_meta=None):
+                 image_meta=None):
         if not image_meta:
             image_meta = {}
 
@@ -129,7 +129,7 @@ class GlanceWriteThread(object):
                     elif image_status == "killed":
                         self.stop()
                         msg = (_("Glance image %s is in killed state") %
-                                 self.image_id)
+                               self.image_id)
                         LOG.error(msg)
                         self.done.send_exception(exception.NovaException(msg))
                     elif image_status in ["saving", "queued"]:
@@ -137,10 +137,9 @@ class GlanceWriteThread(object):
                     else:
                         self.stop()
                         msg = _("Glance image "
-                                    "%(image_id)s is in unknown state "
-                                    "- %(state)s") % {
-                                            "image_id": self.image_id,
-                                            "state": image_status}
+                                "%(image_id)s is in unknown state "
+                                "- %(state)s") % {"image_id": self.image_id,
+                                                  "state": image_status}
                         LOG.error(msg)
                         self.done.send_exception(exception.NovaException(msg))
                 except Exception as exc:
@@ -182,7 +181,7 @@ class IOThread(object):
             while self._running:
                 try:
                     data = self.input.read(READ_CHUNKSIZE)
-                    
+
                     if not data:
                         self.stop()
                         self.done.send(True)
@@ -201,6 +200,7 @@ class IOThread(object):
 
     def wait(self):
         return self.done.wait()
+
 
 class ThreadSafePipe(queue.LightQueue):
     """The pipe to hold the data which the reader writes to and the writer
@@ -241,9 +241,11 @@ class ThreadSafePipe(queue.LightQueue):
     def close(self):
         """A place-holder to maintain consistency."""
         pass
-        
+
+
 def start_transfer(context, read_file_handle, data_size,
-        write_file_handle=None, image_id=None, image_meta=None,task_state=None,callback=None):
+                   write_file_handle=None, image_id=None,
+                   image_meta=None, task_state=None, callback=None):
     """Start the data transfer from the reader to the writer.
     Reader writes to the pipe and the writer reads from the pipe. This means
     that the total transfer time boils down to the slower of the read/write
@@ -272,18 +274,18 @@ def start_transfer(context, read_file_handle, data_size,
     # The GlanceWriteThread handles the same for us.
     elif image_id:
         write_thread = GlanceWriteThread(context, thread_safe_pipe,
-                image_id, image_meta)
+                                         image_id, image_meta)
     # Start the read and write threads.
     read_event = read_thread.start()
     write_event = write_thread.start()
-    
-    if  task_state:
+
+    if task_state:
         progressReportThread = ProgressReportThread(thread_safe_pipe,
                                                     callback,
                                                     data_size,
                                                     task_state)
         progressReportThread.start()
-        
+
     try:
         # Wait on the read and write events to signal their end
         read_event.wait()
@@ -294,7 +296,7 @@ def start_transfer(context, read_file_handle, data_size,
         # waiting.
         read_thread.stop()
         write_thread.stop()
-        
+
         if progressReportThread:
             progressReportThread.stop()
 
@@ -308,8 +310,8 @@ def start_transfer(context, read_file_handle, data_size,
         if write_file_handle:
             write_file_handle.close()
 
-def download_file_in_new_thread(remote_url, local_filename):
 
+def download_file_in_new_thread(remote_url, local_filename):
 
     def _download_file(remote_url, local_filename):
         chunk_size = 1024
@@ -324,12 +326,12 @@ def download_file_in_new_thread(remote_url, local_filename):
                     file.write(chunk)
                     file.flush()
 
-    thread.start_new_thread(_download_file,remote_url, local_filename)
-    
-    
+    thread.start_new_thread(_download_file, remote_url, local_filename)
+
+
 class ProgressReportThread(object):
     """Class that report the task progress"""
-    
+
     def __init__(self, threadSafePipe, callback, total_size, task_state):
         self.threadSafePipe = threadSafePipe
         self.callback = callback
@@ -338,22 +340,22 @@ class ProgressReportThread(object):
         self._running = False
         self.got_exception = False
 
-        
     def start(self):
         self.done = event.Event()
-        
+
         def _inner():
             """ query the file_name size and get the progress"""
             self._running = True
             while self._running:
                 try:
                     transferred_size = self.threadSafePipe.transferred
-                   
+
                     if transferred_size >= self.total_size:
                         self.stop()
                         self.done.send(True)
                         continue
-                    progress="%.0f%%" % (transferred_size/self.total_size * 100)
+                    progress = "%.0f%%" % (
+                        transferred_size/self.total_size * 100)
                     if self.callback:
                         self.callback(task_state="%s (%s)" % (self.task_state,
                                                               progress))
@@ -362,8 +364,7 @@ class ProgressReportThread(object):
                     self.stop()
                     LOG.exception(exc)
                     self.done.send_exception(exc)
-                    
-                    
+
         greenthread.spawn(_inner)
         return self.done
 

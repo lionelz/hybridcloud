@@ -14,6 +14,7 @@ from nova.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 
+
 class container_image_glance(container_image):
 
     def __init__(self, uri):

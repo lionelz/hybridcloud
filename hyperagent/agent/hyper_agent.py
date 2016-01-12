@@ -88,7 +88,6 @@ class HyperAgent(object):
 
         self.server.start()
 
-
     def plug(self, context, **kwargs):
         """agent hyper_vif plug message
 

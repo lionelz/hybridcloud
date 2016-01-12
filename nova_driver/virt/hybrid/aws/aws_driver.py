@@ -72,7 +72,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
               network_info=None,
               block_device_info=None):
         LOG.info('begin time of aws create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                 (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
         vmx_name = 'base-template.vmx'
         inst_st_up = abstract_driver.InstanceStateUpdater(instance)
         vm_name = self._get_vm_name(instance)
@@ -83,16 +83,19 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                 instance.uuid,
                 self._get_image_uuid(image_meta),
                 vmx_name,
-                {'eth0-present': True,
-                 'eth1-present': True},
+                {
+                    'eth0-present': True,
+                    'eth1-present': True
+                },
                 inst_st_up,
-                instance.task_state) as img_conv:
+                instance.task_state
+            ) as img_conv:
 
                 # download
                 img_conv.download_image()
 
                 ovf_name = img_conv.convert_to_ovf_format()
-            
+
                 # upload all the disks in 1 image:
                 ovf_dir = os.path.dirname(ovf_name)
                 file_names = []
@@ -101,7 +104,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                         ovf_dir, instance.uuid, x)
                     if (os.path.exists(file_name)):
                         file_names += [file_name]
-                    
+
                 # import the file as a new AMI image
                 self._provider_client.import_image(
                     vm_name,
@@ -110,7 +113,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
                     instance,
                     self._get_image_uuid(image_meta)
                 )
-            
+
         # launch the VM with 2 networks
         vm_flavor_name = instance.get_flavor().name
         instance_type = cfg.CONF.aws.flavor_map[vm_flavor_name]
@@ -127,7 +130,7 @@ class AWSDriver(abstract_driver.AbstractHybridNovaDriver):
             data_sec_group=cfg.CONF.aws.security_group_data_network
         )
         LOG.info('end time of aws create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                 (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True, migrate_data=None):

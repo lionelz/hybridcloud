@@ -20,7 +20,8 @@ def create_user_data_iso(iso_name, user_data, work_dir):
     # with open("%s/meta-data" % iso_dir, "w+") as f:
     #     f.write("\n")
     subprocess.call(
-        "genisoimage -volid cidata -joliet -rock -o %s %s" % (full_iso_name, iso_dir),
+        "genisoimage -volid cidata -joliet -rock -o %s %s" % (
+            full_iso_name, iso_dir),
         shell=True)
     shutil.rmtree(iso_dir, ignore_errors=True)
     return full_iso_name
@@ -45,17 +46,19 @@ def create_user_data_floppy(floppy_name, user_data, work_dir):
     shutil.rmtree(floppy_dir, ignore_errors=True)
     return full_floppy_name
 
+
 def convert_vm(src_format, src_file, dst_format, dst_file):
     if src_format == dst_file:
         os.rename(src_file, dst_file)
     else:
-        convert_command = ("qemu-img convert -f %s -O %s %s %s" % 
-            (src_format, dst_format, src_file, dst_file))
-    
+        convert_command = ("qemu-img convert -f %s -O %s %s %s" % (
+            src_format, dst_format, src_file, dst_file))
+
         convert_result = subprocess.call([convert_command], shell=True)
-    
+
         if convert_result != 0:
             LOG.error('convert %s to %s failed' % (src_format, dst_format))
+
 
 def copy_replace(src, dst, rep_dict):
     '''

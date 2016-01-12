@@ -34,23 +34,23 @@ class VCloudClient(provider_client.ProviderClient):
             scheme=scheme)
 
     @property
-    def org(self): 
+    def org(self):
         return self._session.org
 
     @property
-    def username(self): 
+    def username(self):
         return self._session.username
 
     @property
-    def password(self): 
+    def password(self):
         return self._session.password
 
     @property
-    def vdc(self): 
+    def vdc(self):
         return self._session.vdc
 
     @property
-    def host_ip(self): 
+    def host_ip(self):
         return self._session.host_ip
 
     def _get_vcloud_vdc(self):
@@ -63,7 +63,7 @@ class VCloudClient(provider_client.ProviderClient):
                                     vapp_name)
 
         if not the_vapp:
-            #raise exception.NovaException("can't find the vapp")
+            # raise exception.NovaException("can't find the vapp")
             LOG.info("can't find the vapp %s" % vapp_name)
             return None
         else:
@@ -205,7 +205,7 @@ class VCloudClient(provider_client.ProviderClient):
         else:
             self._session.wait_for_task(task)
             return True
-    
+
     def detach_disk_from_vm(self, vapp_name, disk_ref):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.detach_disk_from_vm(vapp_name, disk_ref)
@@ -215,7 +215,7 @@ class VCloudClient(provider_client.ProviderClient):
         else:
             self._session.wait_for_task(task)
             return True
-        
+
     def insert_media(self, vapp_name, iso_file):
         the_vapp = self._get_vcloud_vapp(vapp_name)
         task = the_vapp.vm_media(vapp_name, iso_file, 'insert')
@@ -267,7 +267,7 @@ class VCloudClient(provider_client.ProviderClient):
         cmd_result = subprocess.call(cmd, shell=True)
         LOG.debug("end run upload iso command '%s'." % cmd)
         return cmd_result
-        
+
     def upload_metadata_iso(self, iso_file, vapp_name):
         media_name = "metadata_%s.iso" % vapp_name
         try:
@@ -282,7 +282,7 @@ class VCloudClient(provider_client.ProviderClient):
                 "Unable to upload meta-data iso file %s" % vapp_name)
         return self._invoke_api("get_media",
                                 self._metadata_iso_catalog,
-                                media_name)        
+                                media_name)
 
     def delete_metadata_iso(self, vapp_name):
         media_name = "metadata_%s.iso" % vapp_name
@@ -294,4 +294,3 @@ class VCloudClient(provider_client.ProviderClient):
             raise exception.NovaException(
                 "delete vapp failed, task: %s" % task)
         self._session.wait_for_task(task)
-

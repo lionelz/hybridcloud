@@ -97,12 +97,12 @@ def set_device_mtu(dev, mtu=None):
 
 def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
     ovs_vsctl(['--', '--if-exists', 'del-port', dev, '--',
-                'add-port', bridge, dev,
-                '--', 'set', 'Interface', dev,
-                'external-ids:iface-id=%s' % iface_id,
-                'external-ids:iface-status=active',
-                'external-ids:attached-mac=%s' % mac,
-                'external-ids:vm-uuid=%s' % instance_id])
+               'add-port', bridge, dev,
+               '--', 'set', 'Interface', dev,
+               'external-ids:iface-id=%s' % iface_id,
+               'external-ids:iface-status=active',
+               'external-ids:attached-mac=%s' % mac,
+               'external-ids:vm-uuid=%s' % instance_id])
     set_device_mtu(dev)
 
 

@@ -67,44 +67,55 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
                    run_as_root=True)
         # set MTU
         hu.set_device_mtu(vnic_veth, 1400)
-        container_nic_name = self._container_device_name( hyper_vif )
-        eth_vif_config = {'devices':
-                            { container_nic_name:
-                                { 'type':'nic',
-                                  'nictype': 'physical',
-                                  'parent': vnic_veth
-                                }
-                            }
-                         }
-        self.lxd.container_update(self.container_name, eth_vif_config)
+        container_nic_name = self._container_device_name(hyper_vif)
+        eth_vif_config = {
+            'devices': {
+                container_nic_name: {
+                    'type': 'nic',
+                    'nictype': 'physical',
+                    'parent': vnic_veth
+                }
+            }
+        }
 
+        self.lxd.container_update(self.container_name, eth_vif_config)
 
     @lockutils.synchronized('hyperhost-plug-unplug')
     def unplug(self, hyper_vif):
-        keys_to_remove = [ key for key, value in self.nics.iteritems()
-                          if value == hyper_vif['address'] ]
+        keys_to_remove = [
+            key
+            for key, value in self.nics.iteritems()
+            if value == hyper_vif['address']
+        ]
         for key in keys_to_remove:
             del self.nics[key]
         self.driverImpl.unplug(hyper_vif)
 
     def container_init(self):
-        null_profile = {'config':{}, 'name': 'null_profile'}
+        null_profile = {
+            'config': {},
+            'name': 'null_profile'
+        }
         self.lxd.profile_create(null_profile)
         container_info = self.get_container_info()
         container_alias = container_info['alias']
-        container_config = {'name': self.container_name,
-                            'profiles': ['null_profile'],
-                            'source': {'type': 'image',
-                                       'alias':container_alias}}
+        container_config = {
+            'name': self.container_name,
+            'profiles': ['null_profile'],
+            'source': {
+                'type': 'image',
+                'alias': container_alias
+            }
+        }
         self.lxd.container_init(container_config)
 
     def get_container_info(self):
         return {'alias': self.container_image.alias}
 
-    def _container_device_name( self, hyper_vif ):
+    def _container_device_name(self, hyper_vif):
         index = 0
         if bool(self.nics) is True:
             index = max(self.nics.values())
             index += 1
         self.nics[index] = hyper_vif['address']
-        return  "eth%d" % index
+        return "eth%d" % index

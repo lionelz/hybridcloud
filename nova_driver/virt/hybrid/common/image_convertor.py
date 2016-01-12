@@ -15,7 +15,7 @@ IMAGE_API = image.API()
 
 
 class ImageConvertorToOvf(object):
-    
+
     def __init__(self,
                  context,
                  work_dir,
@@ -46,9 +46,9 @@ class ImageConvertorToOvf(object):
                 self._vmx_template_params[k] = 'TRUE'
             else:
                 self._vmx_template_params[k] = 'FALSE'
-        if not 'cpu' in self._vmx_template_params:
+        if 'cpu' not in self._vmx_template_params:
             self._vmx_template_params['cpu'] = 1
-        if not 'memsize' in self._vmx_template_params:
+        if 'memsize' not in self._vmx_template_params:
             self._vmx_template_params['memsize'] = 1024
         # be sure that the memory is multiple of 4
         memsize = int(self._vmx_template_params['memsize'])
@@ -71,8 +71,9 @@ class ImageConvertorToOvf(object):
 
         converted_file_name = '%s/%s.vmdk' % (self._conversion_dir,
                                               self._converted_file_name)
-        orig_file_name  = '%s/%s' % (self._work_dir, self._image_uuid)
-        image_vmdk_file_name = '%s/%s.vmdk' % (self._work_dir, self._image_uuid)
+        orig_file_name = '%s/%s' % (self._work_dir, self._image_uuid)
+        image_vmdk_file_name = '%s/%s.vmdk' % (
+            self._work_dir, self._image_uuid)
 
         # check if the image or volume vmdk cached
         if not os.path.exists(image_vmdk_file_name):
@@ -93,14 +94,15 @@ class ImageConvertorToOvf(object):
 
         self._callback(task_state=self._task_state)
 
-
     def _convert_vmdk_to_ovf(self):
         self._callback(task_state=hybrid_task_states.PACKING)
 
         vmx_file_dir = '%s/%s' % (self._work_dir, 'vmx')
-        vmx_cache_full_name = '%s/%s' % (vmx_file_dir, self._vmx_template_name)
-        vmx_full_name = '%s/%s' % (self._conversion_dir, self._vmx_template_name)
-        
+        vmx_cache_full_name = '%s/%s' % (
+            vmx_file_dir, self._vmx_template_name)
+        vmx_full_name = '%s/%s' % (
+            self._conversion_dir, self._vmx_template_name)
+
         LOG.debug("copy vmx_cache file %s to vmx_full_name %s with %s" % (
             vmx_cache_full_name, vmx_full_name, self._vmx_template_params))
         common_tools.copy_replace(vmx_cache_full_name,
@@ -114,7 +116,7 @@ class ImageConvertorToOvf(object):
         mk_ovf_cmd = 'ovftool -o %s %s' % (vmx_full_name, ovf_name)
 
         LOG.debug("begin run command %s" % mk_ovf_cmd)
-        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True) 
+        mk_ovf_result = subprocess.call(mk_ovf_cmd, shell=True)
         LOG.debug("end run command %s" % mk_ovf_cmd)
 
         if mk_ovf_result != 0:
@@ -130,15 +132,15 @@ class ImageConvertorToOvf(object):
             orig_file_name = "%s/%s.tmp" % (self._conversion_dir,
                                             self._image_uuid)
             LOG.debug("Begin download image file %s " % self._image_uuid)
-    
+
             metadata = IMAGE_API.get(self._context, self._image_uuid)
             file_size = int(metadata['size'])
 
             read_iter = IMAGE_API.download(self._context, self._image_uuid)
             glance_file_handle = util.GlanceFileRead(read_iter)
-    
+
             orig_file_handle = fileutils.file_open(orig_file_name, "wb")
-    
+
             util.start_transfer(self._context,
                                 glance_file_handle,
                                 file_size,

@@ -140,9 +140,11 @@ class ForbiddenException(VCloudDriverException):
     msg_fmt = _("Forbidden.")
     code = 403
 
+
 class DeleteException(VCloudDriverException):
     msg_fmt = _("Delete error.")
     code = 400
+
 
 class TaskInProgress(VCloudDriverException):
     msg_fmt = _("Entity has another operation in process.")

@@ -69,15 +69,20 @@ class HyperVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
 
         # linux bridge creation
         if not hu.device_exists(br_name):
-            hu.execute('brctl', 'addbr', br_name, run_as_root=True)
-            hu.execute('brctl', 'setfd', br_name, 0, run_as_root=True)
-            hu.execute('brctl', 'stp', br_name, 'off', run_as_root=True)
+            hu.execute('brctl', 'addbr', br_name,
+                       run_as_root=True)
+            hu.execute('brctl', 'setfd', br_name, 0,
+                       run_as_root=True)
+            hu.execute('brctl', 'stp', br_name, 'off',
+                       run_as_root=True)
 
         # veth for br-int creation
         if not hu.device_exists(qbr_veth):
             hu.create_veth_pair(br_int_veth, qbr_veth)
-            hu.execute('ip', 'link', 'set', br_name, 'up', run_as_root=True)
-            hu.execute('brctl', 'addif', br_name, br_int_veth, run_as_root=True)
+            hu.execute('ip', 'link', 'set', br_name, 'up',
+                       run_as_root=True)
+            hu.execute('brctl', 'addif', br_name, br_int_veth,
+                       run_as_root=True)
 
         # add in br-int the veth
         hu.create_ovs_vif_port(self.get_bridge_name(vif),
@@ -91,7 +96,7 @@ class HyperVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
             hu.execute('brctl', 'addif', br_name, tap_veth, run_as_root=True)
 
         return vnic_veth
-        
+
     def remove_br_vnic(self, vif):
         v1_name, v2_name = self.get_veth_pair_names(vif.get('id'))
         t1_name, t2_name = self.get_veth_pair_names2(vif.get('id'))

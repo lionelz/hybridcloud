@@ -6,12 +6,12 @@ from hyperagent.agent import lxd_driver
 from hyperagent.common.container_image import container_image
 
 
-
 class container_image_http(container_image):
 
     def __init__(self, uri):
         super(container_image_http, self).__init__(uri)
-        # uri = 'http://images.linuxcontainers.org/images/gentoo/current/amd64/default/20160111_14:12/lxd.tar.xz'
+        # uri = 'http://images.linuxcontainers.org/images/gentoo/'
+        # 'current/amd64/default/20160111_14:12/lxd.tar.xz'
         self._uri = uri
         self.lxd = lxd_driver.API()
         self._image_alias = 'my-image'
@@ -39,4 +39,3 @@ class container_image_http(container_image):
     @property
     def alias(self):
         return self._image_alias
-    

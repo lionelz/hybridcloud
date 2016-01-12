@@ -1,8 +1,8 @@
 from hyperagent.agent import hyper_agent_utils as hu
-import re
+
 
 class API(object):
-    
+
     run_as_root = True
 
     def __init__(self):
@@ -81,29 +81,28 @@ class API(object):
 
     # profiles
     def profile_create(self, profile):
-        self._execute('lxc', 'profile', 'delete',
-                   profile['name'],
-                   check_exit_code=False)
-        self._execute('lxc', 'profile', 'create',
-                   profile['name'])
+        self._execute('lxc', 'profile', 'delete', profile['name'],
+                      check_exit_code=False)
+        self._execute('lxc', 'profile', 'create', profile['name'])
         for k, v in profile['config'].iteritems():
-            self._execute('lxc', 'profile', 'set',
-                       profile['name'],
-                       k, v)
+            self._execute('lxc', 'profile', 'set', profile['name'], k, v)
 
 
 if __name__ == "__main__":
     lxd = API()
     API.run_as_root = False
-    null_profile = { 'config':{}, 'name': 'null_profile'}
+    null_profile = {'config': {}, 'name': 'null_profile'}
     lxd.profile_create(null_profile)
     print('profile created')
-    container_info =  {'alias': 'trusty'}
+    container_info = {'alias': 'trusty'}
     container = "s123456"
     lxd.container_destroy(container)
     container_alias = container_info['alias']
-    container_config = {'name': container, 'profiles': ['null_profile'],
-                        'source': { 'type': 'image', 'alias':container_alias } }
+    container_config = {
+        'name': container,
+        'profiles': ['null_profile'],
+        'source': {'type': 'image', 'alias': container_alias}
+    }
     if lxd.container_defined(container):
         print ('container %s is defined' % container)
     else:
@@ -123,15 +122,16 @@ if __name__ == "__main__":
     for dev in ['vvv1', 'vvv2']:
         hu.execute('ip', 'link', 'set', dev, 'up')
 
+    eth_vif_config = {
+        'devices': {
+            'eth0': {
+                'type': 'nic',
+                'nictype': 'physical',
+                'parent': 'vvv2'
+            }
+        }
+    }
 
-    eth_vif_config = {'devices':
-                        { 'eth0':
-                            { 'type':'nic',
-                              'nictype': 'physical',
-                              'parent': 'vvv2'
-                            }
-                        }
-                     }
     lxd.container_update(container, eth_vif_config)
     print('container updated')
     if lxd.container_running(container):

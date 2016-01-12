@@ -6,6 +6,7 @@ import urlparse
 
 from nova.openstack.common import importutils
 
+
 def get_container_image(container_image_uri):
     url = urlparse.urlparse(container_image_uri)
     scheme = url.scheme

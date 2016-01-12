@@ -117,7 +117,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
               block_device_info=None):
 
         LOG.info('begin time of vcloud create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                 (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
         for vif in network_info:
             LOG.debug('vif: %s' % vif)
         conversion_dir = self._get_conversion_dir(instance)
@@ -128,23 +128,27 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         if not os.path.exists('%s/vmx/%s' % (self.conversion_dir, vmx_name)):
             vmx_name = 'base-template.vmx'
         inst_st_up = abstract_driver.InstanceStateUpdater(instance)
-        
+
         LOG.debug('image_meta=%s' % image_meta)
 
         with image_convertor.ImageConvertorToOvf(
-                 context,
-                 self.conversion_dir,
-                 instance.uuid,
-                 self._get_image_uuid(image_meta),
-                 vmx_name,
-                 {'eth0-present': True,
-                  'eth1-present': True,
-                  'dvd0-present': True,
-                  'dvd0': 'userdata.iso',
-                  'memsize': instance.get_flavor().memory_mb,
-                  'cpu': instance.get_flavor().vcpus},
-                 inst_st_up,
-                 instance.task_state) as img_conv:
+            context,
+            self.conversion_dir,
+            instance.uuid,
+            self._get_image_uuid(image_meta),
+            vmx_name,
+            {
+                'eth0-present': True,
+                'eth1-present': True,
+                'dvd0-present': True,
+                'dvd0': 'userdata.iso',
+                'memsize': instance.get_flavor().memory_mb,
+                'cpu': instance.get_flavor().vcpus
+            },
+            inst_st_up,
+            instance.task_state
+        ) as img_conv:
+
             # download the image
             img_conv.download_image()
 
@@ -168,7 +172,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                 vapp_name,
                 cfg.CONF.vcloud.mgnt_network,
                 cfg.CONF.vcloud.data_network)
-    
+
             inst_st_up(task_state=hybrid_task_states.VM_CREATING)
             self._provider_client.wait_for_status(
                 instance,
@@ -176,12 +180,12 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                 vcloud.VCLOUD_STATUS.POWERED_OFF)
             # mount it
             self._provider_client.insert_media(vapp_name, metadata_iso)
-    
+
             # power on it
             self._provider_client.power_on(instance, vapp_name)
 
         LOG.info('end time of vcloud create vm is %s' %
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                 (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
 
     def _download_vmdk_from_vcloud(self, context, src_url, dst_file_name):
 
@@ -221,7 +225,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
                             instance=instance)
         self._update_vm_task_state(instance, task_state=vm_task_state)
 
-    #TODO: test it
+    # TODO: test it
     def snapshot(self, context, instance, image_id, update_task_state):
 
         update_task_state(task_state=task_states.IMAGE_PENDING_UPLOAD)
@@ -268,8 +272,13 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
         # 5. delete temporary files
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def _do_destroy_vm(self, context, instance, network_info, block_device_info=None,
-                       destroy_disks=True, migrate_data=None):
+    def _do_destroy_vm(self,
+                       context,
+                       instance,
+                       network_info,
+                       block_device_info=None,
+                       destroy_disks=True,
+                       migrate_data=None):
 
         vapp_name = self._get_vm_name(instance)
         try:
@@ -303,7 +312,6 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
             self.unplug_vifs(instance, network_info)
 
         LOG.debug("Cleanup network finished", instance=instance)
-
 
     def attach_interface(self, instance, image_meta, vif):
         LOG.debug("attach_interface: %s, %s" % (instance, vif))

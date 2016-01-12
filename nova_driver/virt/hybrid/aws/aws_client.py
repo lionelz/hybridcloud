@@ -24,13 +24,13 @@ class NodeState(object):
     STOPPING = 64
     STOPPED = 80
     TERMINATED = 48
-    
+
 AWS_POWER_STATE = {
     NodeState.RUNNING: power_state.RUNNING,
     NodeState.PENDING: power_state.BUILDING,
-    NodeState.STOPPING: power_state.SHUTDOWN,              
-    NodeState.STOPPED: power_state.SHUTDOWN,              
-    NodeState.TERMINATED: power_state.CRASHED,              
+    NodeState.STOPPING: power_state.SHUTDOWN,
+    NodeState.STOPPED: power_state.SHUTDOWN,
+    NodeState.TERMINATED: power_state.CRASHED,
 }
 
 
@@ -103,17 +103,19 @@ class AWSClient(provider_client.ProviderClient):
                     s3_bucket,
                     short_file_name,
                     ExtraArgs={
-                       'GrantRead': 'uri="http://acs.amazonaws.com/'
-                       'groups/global/AllUsers"',
-                       'ContentType': 'text/plain'},
+                        'GrantRead': 'uri="http://acs.amazonaws.com/'
+                        'groups/global/AllUsers"',
+                        'ContentType': 'text/plain'
+                    },
                     Callback=ProgressPercentage(file_name, instance))
                 disk_containers += [{
                     'Description': 'image %s' % name,
                     'UserBucket': {
                         'S3Bucket': s3_bucket,
                         'S3Key': short_file_name
-                    }}]
-            
+                    }
+                }]
+
             # TODO: check the response
             res = self.ec2.import_image(
                 DryRun=False,
@@ -121,7 +123,7 @@ class AWSClient(provider_client.ProviderClient):
                 DiskContainers=disk_containers
             )
             import_task_id = res.get('ImportTaskId')
-    
+
             d_res = self.ec2.describe_import_image_tasks(
                 ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
             while d_res.get('Progress'):
@@ -134,13 +136,13 @@ class AWSClient(provider_client.ProviderClient):
                 time.sleep(15)
                 d_res = self.ec2.describe_import_image_tasks(
                     ImportTaskIds=[import_task_id]).get('ImportImageTasks')[0]
-                
+
             if d_res.get('Status') != 'completed':
                 raise exception.NovaException(
                     "import image %s failed: %s" % (
                         name,
                         d_res.get('StatusMessage')))
-    
+
             image_id = d_res.get('ImageId')
             status = '%s (%s)' % (
                 hybrid_task_states.PROVIDER_PREPARING,
@@ -150,10 +152,10 @@ class AWSClient(provider_client.ProviderClient):
                                                status))
             instance.task_state = status
             instance.save()
-    
+
             waiter = self.ec2.get_waiter('image_available')
             waiter.wait(ImageIds=[image_id])
-            
+
             # TODO: check the response
             self.ec2.create_tags(Resources=[image_id],
                                  Tags=[{'Key': 'hybrid_cloud_image_id',
@@ -161,7 +163,8 @@ class AWSClient(provider_client.ProviderClient):
         finally:
             self.s3_resource.delete_object(
                 Bucket=s3_bucket,
-                Key= file_name)
+                Key=file_name
+            )
 
     def create_instance(self,
                         instance,
@@ -215,7 +218,6 @@ class AWSClient(provider_client.ProviderClient):
 
         aws_instance.wait_until_running()
 
-    
     def is_exists_image(self, image_uuid):
         images = self.ec2_resource.images.filter(Filters=[{
             'Name': 'tag:hybrid_cloud_image_id',
@@ -229,7 +231,7 @@ class AWSClient(provider_client.ProviderClient):
         return self.ec2_resource.instances.filter(Filters=[{
             'Name': 'tag:hybrid_cloud_instance_id',
             'Values': [instance.uuid]}])
-        
+
     def get_vm_status(self, instance, vapp_name):
         instances = self._get_instances(instance)
         for aws_instance in instances:
@@ -241,7 +243,7 @@ class AWSClient(provider_client.ProviderClient):
         instances = self._get_instances(instance)
         for aws_instance in instances:
             aws_instance.stop()
-        
+
     def power_on(self, instance, name):
         instances = self._get_instances(instance)
         for aws_instance in instances:
@@ -259,4 +261,3 @@ class AWSClient(provider_client.ProviderClient):
         instances = self._get_instances(instance)
         for aws_instance in instances:
             aws_instance.reboot()
-

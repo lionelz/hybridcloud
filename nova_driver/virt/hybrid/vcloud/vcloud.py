@@ -86,8 +86,6 @@ STATUS_DICT_VAPP_TO_INSTANCE = {
 }
 
 
-
-
 def synchronized(method):
     """
     A decorator object that used to synchronized method.
@@ -102,9 +100,9 @@ def synchronized(method):
 
     return new_synchronized_method
 
+
 class RetryDecorator(object):
     # TODO(nkapotoxin) Use oslo_utils.excutils.py instead.
-
     """Decorator for retrying a function upon suggested exceptions.
 
     The decorated function is retried for the given number of times, and the
@@ -182,8 +180,8 @@ class RetryDecorator(object):
 
         return func
 
-class VCA(sdk_vca):
 
+class VCA(sdk_vca):
     """
     Packaged Vmware vcloud python sdk vca.
     Vclouddriver just use func here.
@@ -399,7 +397,8 @@ class VCA(sdk_vca):
 
         if not vapp:
             LOG.error("cannot get vapp %s info" % vapp_name)
-            raise exceptions.ForbiddenException("cannot get vapp %s info" % vapp_name)
+            raise exceptions.ForbiddenException(
+                "cannot get vapp %s info" % vapp_name)
 
         return VAPP(vapp.me, vapp.headers, vapp.verify)
 
@@ -421,7 +420,8 @@ class VAPP(sdk_vapp):
             return taskType.parseString(self.response.content, True)
         elif self.response.status_code == requests.codes.forbidden:
             LOG.error("enableDownloadfailed: forbidden vapp %s" % self.name)
-            raise exceptions.ForbiddenException("enableDownloadfailed: forbidden vapp %s" % self.name)
+            raise exceptions.ForbiddenException(
+                "enableDownloadfailed: forbidden vapp %s" % self.name)
         else:
             return False
 
@@ -439,8 +439,10 @@ class VAPP(sdk_vapp):
         if self.response.status_code == requests.codes.ok:
             return vAppType.parseString(self.response.content, True)
         elif self.response.status_code == requests.codes.forbidden:
-            LOG.error("get_ovf_descriptor failed: forbidden. vapp %s " % self.name)
-            raise exceptions.ForbiddenException("get_ovf_descriptor failed: forbidden. vapp %s" % self.name)
+            LOG.error(
+                "get_ovf_descriptor failed: forbidden. vapp %s " % self.name)
+            raise exceptions.ForbiddenException(
+                "get_ovf_descriptor failed: forbidden. vapp %s" % self.name)
         else:
             return False
 
@@ -676,6 +678,3 @@ class VCloudAPISession(object):
     def _get_error_message(self, lease):
         """Get error message associated with the given lease."""
         return "Unknown"
-
-
-

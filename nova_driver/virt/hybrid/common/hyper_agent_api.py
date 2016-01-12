@@ -22,7 +22,7 @@ from nova.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 
-hyper_agent_api_opts = [  
+hyper_agent_api_opts = [
     cfg.IntOpt('plug_retry_timeout',
                default=15,
                help='timeout for each connect retry for a new VM'),
@@ -63,8 +63,9 @@ class HyperAgentCallback(object):
 
     def get_vifs_for_hyper_node(self, context, **kwargs):
         """Return the list of VIF for an hyper node."""
-        hyper_node_id = kwargs['hyper_node_id']
+        # hyper_node_id = kwargs['hyper_node_id']
         # TODO: implementation that return all the instances of the CN
+        pass
 
 
 class HyperAgentAPI(object):
@@ -110,7 +111,7 @@ class HyperAgentAPI(object):
                     LOG.debug('HyperAgentAPI:plug - Max retries exceeded,'
                               'raising exception')
                     raise e
-        
+
     def unplug(self, instance_id, hyper_vif):
         """
         Disconnects an instance
@@ -121,5 +122,5 @@ class HyperAgentAPI(object):
                                     instance_id=instance_id,
                                     hyper_vif=hyper_vif)
         except Exception as e:
-            LOG.error('Unplug return error:%s' % (str(e),))
+            LOG.error('Unplug return error:%s' % (str(e), ))
             return None

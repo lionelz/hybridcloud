@@ -47,8 +47,11 @@ class VMNameSpace(object):
                  h_nic_name, h_mac_adress, h_cidr, h_ip):
         # Provider NIC
         p_ip_tab = p_ip.split('.')
-        self._add_nic(p_nic_name, p_mac_adress,
-                      '%s.%s.%s.1/24' % (p_ip_tab[0], p_ip_tab[1], p_ip_tab[2]))
+        self._add_nic(
+            p_nic_name,
+            p_mac_adress,
+            '%s.%s.%s.1/24' % (p_ip_tab[0], p_ip_tab[1], p_ip_tab[2])
+        )
 
         # Hyper NIC
         h_cidr_ip = h_ip + '/' + h_cidr.split('/')[1]
