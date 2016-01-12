@@ -17,3 +17,7 @@ class container_image_local(container_image):
 
     def upload(self):
         return False
+
+    @property
+    def alias(self):
+        return self._image_alias

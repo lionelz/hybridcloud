@@ -33,7 +33,9 @@ export local_ip=`ip -o -4 a | grep ${network_data_interface} | awk -e '{print $4
 sed_command=""
 for p in $PARAMS; do
    val=${!p}
-   sed_command=`echo "s/##$p##/${val//\//\\\/}/g;$sed_command"`
+   val=${val//\//\\/}
+   val=${val//\&/\\&}
+   sed_command=`echo "s/##$p##/${val}/g;$sed_command"`
 done;
 echo $sed_command
 

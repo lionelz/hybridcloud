@@ -44,8 +44,7 @@ class container_image_glance(container_image):
             password=self._url.password,
             tenant_name=self._params['project_name'][0]
         )
-        session = session.Session(auth)
-        token = session.get_token()
+        token = session.Session(auth).get_token()
 
         # glance client
         glance_client = client.Client(2,
@@ -62,3 +61,7 @@ class container_image_glance(container_image):
         finally:
             # remove the temporary image
             os.remove(file_dest)
+
+    @property
+    def alias(self):
+        return self._image_alias

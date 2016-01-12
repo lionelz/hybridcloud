@@ -13,11 +13,12 @@ def create_user_data_iso(iso_name, user_data, work_dir):
     os.makedirs(iso_dir)
     with open("%s/userdata.txt" % iso_dir, "w+") as f:
         for k, v in user_data.iteritems():
-            f.write("%s=%s\n" % (k, v))
-    with open("%s/user-data" % iso_dir, "w+") as f:
-        f.write("\n")
-    with open("%s/meta-data" % iso_dir, "w+") as f:
-        f.write("\n")
+            f.write('%s="%s\n"' % (k, v))
+    # For cloud init user data standard, use user-data/meta-data file
+    # with open("%s/user-data" % iso_dir, "w+") as f:
+    #     f.write("\n")
+    # with open("%s/meta-data" % iso_dir, "w+") as f:
+    #     f.write("\n")
     subprocess.call(
         "genisoimage -volid cidata -joliet -rock -o %s %s" % (full_iso_name, iso_dir),
         shell=True)

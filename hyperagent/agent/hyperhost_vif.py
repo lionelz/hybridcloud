@@ -39,7 +39,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         self.lxd = lxd_driver.API()
         self.nics = {}
         self.container_name = 'c' + self.instance_id
-        self.container_image_uri = cfg.hyperagent.container_image_uri
+        self.container_image_uri = cfg.CONF.hyperagent.container_image_uri
         self.container_image = container_image.get_container_image(
             self.container_image_uri)
 
@@ -63,8 +63,8 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         vnic_veth = self.create_br_vnic(instance_id, hyper_vif)
         # set mac address on device
         hu.execute('ip', 'link', 'set', vnic_veth,
-                           'address', hyper_vif['address'],
-                           run_as_root=True)
+                   'address', hyper_vif['address'],
+                   run_as_root=True)
         # set MTU
         hu.set_device_mtu(vnic_veth, 1400)
         container_nic_name = self._container_device_name( hyper_vif )
@@ -99,7 +99,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         self.lxd.container_init(container_config)
 
     def get_container_info(self):
-        return {'alias':'trusty'}
+        return {'alias': self.container_image.alias}
 
     def _container_device_name( self, hyper_vif ):
         index = 0
