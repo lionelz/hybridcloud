@@ -1,4 +1,5 @@
 import os
+import uuid
 import urlparse
 
 from glanceclient import client
@@ -26,14 +27,14 @@ class container_image_glance(container_image):
         self._params = urlparse.parse_qs(self._url.query)
         self.lxd = lxd_driver.API()
         self._image_uuid = self._params['image_uuid'][0]
-        self._image_alias = 'i%s' % self._image_uuid
+        self._image_alias = 'my-image'
 
     def defined(self):
         return self.lxd.image_defined(self._image_alias)
 
     def upload(self):
         # set the image in a temporary folder
-        file_dest = '/tmp/%s' % self._image_alias
+        file_dest = '/tmp/%s' % str(uuid.uuid4())
         endpoint = '%s://%s:%s/v2' % (self._params['scheme'][0],
                                       self._url.hostname,
                                       self._url.port)

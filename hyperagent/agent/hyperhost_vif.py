@@ -38,7 +38,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
         super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
         self.nics = {}
-        self.container_name = 'c' + self.instance_id
+        self.container_name = 'my-container'
         self.container_image_uri = cfg.CONF.hyperagent.container_image_uri
         self.container_image = container_image.get_container_image(
             self.container_image_uri)
