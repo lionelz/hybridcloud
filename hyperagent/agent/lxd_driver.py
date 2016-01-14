@@ -57,8 +57,6 @@ class API(object):
     def container_update(self, container, config):
         if 'config' in config:
             for k, v in config['config'].iteritems():
-#                 self._execute(
-#                     '(\ncat << EOF\n%s\nEOF\n) | lxc config set %s -' % (v, k))
                 self._execute('lxc', 'config', 'set', container, k, v)
         elif 'devices' not in config or len(config['devices']) == 0:
             for eth in [0, 10]:
