@@ -55,7 +55,12 @@ class API(object):
         self._execute(*cmd, **kwargs)
 
     def container_update(self, container, config):
-        if 'devices' not in config or len(config['devices']) == 0:
+        if 'config' in config:
+            for k, v in config['config'].iteritems():
+#                 self._execute(
+#                     '(\ncat << EOF\n%s\nEOF\n) | lxc config set %s -' % (v, k))
+                self._execute('lxc', 'config', 'set', container, k, v)
+        elif 'devices' not in config or len(config['devices']) == 0:
             for eth in [0, 10]:
                 self._execute('lxc', 'config', 'device',
                               'remove', container, 'eth%d' % eth,

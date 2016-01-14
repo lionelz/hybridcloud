@@ -10,9 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import base64
+
 from oslo.config import cfg
 from hyperagent.agent import hyper_agent_utils as hu
-from hyperagent.agent import hypervm_vif
+from hyperagent.agent import vif_agent
 from hyperagent.agent import lxd_driver
 from hyperagent.common import container_image
 
@@ -23,6 +25,10 @@ hyper_host_opts = [
     cfg.StrOpt('container_image_uri',
                default='local://trusty',
                help='Container image uri'),
+    cfg.StrOpt('user_data',
+               help='user data to inject to the container'),
+    cfg.StrOpt('key_data',
+               help='key data to inject to the container'),
 ]
 
 
@@ -31,11 +37,11 @@ cfg.CONF.register_opts(hyper_host_opts, 'hyperagent')
 LOG = logging.getLogger(__name__)
 
 
-class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
+class LXCHostVIFDriver(vif_agent.AgentVMVIFDriver):
     """VIF driver for hyper host networking."""
 
     def __init__(self, instance_id=None, call_back=None):
-        super(HyperHostVIFDriver, self).__init__(instance_id, call_back)
+        super(LXCHostVIFDriver, self).__init__(instance_id, call_back)
         self.lxd = lxd_driver.API()
         self.nics = {}
         self.container_name = 'my-container'
@@ -53,7 +59,7 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
             return
         # remove all eth config for the container
         self.lxd.container_update(self.container_name, {})
-        super(HyperHostVIFDriver, self).startup_init()
+        super(LXCHostVIFDriver, self).startup_init()
         self.lxd.container_start(self.container_name, 100)
 
     @lockutils.synchronized('hyperhost-plug-unplug')
@@ -108,6 +114,16 @@ class HyperHostVIFDriver(hypervm_vif.HyperVMVIFDriver):
             }
         }
         self.lxd.container_init(container_config)
+        # add the user data and the ssh key
+        udata = cfg.CONF.hyperagent.user_data
+        kdata = cfg.CONF.hyperagent.key_data
+        s_config = {}
+        if udata and udata != '':
+            s_config['user.user-data'] = base64.b64decode(udata)
+        if kdata and kdata != '':
+            s_config['user.meta-data'] = (
+                '#cloud-config\n\nssh_authorized_keys:\n  - %s\n') % kdata
+        self.lxd.container_update(self.container_name, {'config': s_config})
 
     def get_container_info(self):
         return {'alias': self.container_image.alias}

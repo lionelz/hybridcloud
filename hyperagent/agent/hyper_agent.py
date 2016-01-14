@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 
 hyper_agent_default_opts = [
     cfg.StrOpt('hyper_agent_vif_driver',
-               default='hyperagent.agent.hypervm_vif.HyperVMVIFDriver',
+               default='hyperagent.agent.vif_agent.AgentVMVIFDriver',
                help='The Hyper Agent VIF Driver'),
     ]
 

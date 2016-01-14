@@ -22,13 +22,13 @@ LOG = logging.getLogger(__name__)
 NIC_NAME_LEN = 14
 
 
-class HyperVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
+class AgentVMVIFDriver(hyper_vif_driver.HyperVIFDriver):
     """VIF driver for hypervm networking."""
 
     def __init__(self, instance_id=None, call_back=None):
         self.call_back = call_back
         self.instance_id = instance_id
-        super(HyperVMVIFDriver, self).__init__()
+        super(AgentVMVIFDriver, self).__init__()
 
     def startup_init(self):
         vifs_for_inst = self.call_back.get_vifs_for_instance(self.instance_id)

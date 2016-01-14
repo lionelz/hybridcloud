@@ -13,7 +13,7 @@
 from oslo.config import cfg
 
 from hyperagent.agent import hyper_agent_utils as hu
-from hyperagent.agent import hypervm_vif
+from hyperagent.agent import vif_agent
 
 from nova.openstack.common import lockutils
 from nova.openstack.common import log as logging
@@ -35,10 +35,10 @@ cfg.CONF.register_opts(hyper_node_agent_opts, 'hyperagent')
 
 
 LOG = logging.getLogger(__name__)
-NIC_NAME_LEN = hypervm_vif.NIC_NAME_LEN
+NIC_NAME_LEN = vif_agent.NIC_NAME_LEN
 
 
-class HyperNodeVIFDriver(hypervm_vif.HyperVMVIFDriver):
+class HyperNodeVIFDriver(vif_agent.AgentVMVIFDriver):
     """VIF driver for hypernode networking."""
 
     def __init__(self, instance_id=None, call_back=None):

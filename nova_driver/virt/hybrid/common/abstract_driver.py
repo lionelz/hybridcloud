@@ -102,8 +102,12 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
     def _get_image_uuid(self, image_meta):
         if 'properties' in image_meta:
             props = image_meta.get('properties')
-            if 'container_image_uuid' in props:
-                return props['container_image_uuid']
+            if 'parent_image_uuid' in props:
+                return props['parent_image_uuid']
+            if 'parent_image_type' in props:
+                # TODO: search an image with the image_type in glance
+                # and return its image uuid
+                pass
         return self._get_my_image_uuid(image_meta)
 
     def _get_my_image_uuid(self, image_meta):
@@ -120,7 +124,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             rabbit_host = cfg.CONF.rabbit_hosts[0]
         if ':' in rabbit_host:
             rabbit_host = rabbit_host[0:rabbit_host.find(':')]
-        user_metada = {
+        user_metadata = {
             'rabbit_userid': cfg.CONF.rabbit_userid,
             'rabbit_password': cfg.CONF.rabbit_password,
             'rabbit_host': rabbit_host,
@@ -131,17 +135,17 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             'network_vm_interface': 'eth2',
         }
         hyper_agent_vif_driver = (
-            'hyperagent.agent.hypervm_vif.HyperVMVIFDriver'
+            'hyperagent.agent.vif_agent.AgentVMVIFDriver'
         )
         if 'properties' in image_meta:
             props = image_meta.get('properties')
             if 'agent_type' in props:
                 if props['agent_type'] == 'node':
                     hyper_agent_vif_driver = (
-                        'hyperagent.agent.hypernode_vif.HyperNodeVIFDriver')
+                        'hyperagent.agent.vif_hypernode.HyperNodeVIFDriver')
                 if props['agent_type'] in ['lxd_host', 'lxd']:
                     hyper_agent_vif_driver = (
-                        'hyperagent.agent.hyperhost_vif.HyperHostVIFDriver')
+                        'hyperagent.agent.vif_lxc_host.LXCHostVIFDriver')
             if 'container_image_uri' in props:
                 # 'glance://demo:stack@${glance_host}:${glance_port}/?'
                 # '${image_uuid}'
@@ -165,10 +169,18 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                 }
                 for k, v in simple_s.iteritems():
                     curi = curi.replace('${%s}' % k, '%s' % str(v))
-                user_metada['container_image_uri'] = curi
-        user_metada['hyper_agent_vif_driver'] = hyper_agent_vif_driver
-        LOG.debug('user_metada=%s' % user_metada)
-        return user_metada
+                user_metadata['container_image_uri'] = curi
+        user_metadata['hyper_agent_vif_driver'] = hyper_agent_vif_driver
+        # add the user metadata
+        if instance.get('user_data', None) is not None:
+            user_metadata['user_data'] = instance['user_data']
+        # add the key pair
+        if instance.get('key_name', None) is not None:
+            user_metadata['key_name'] = instance['key_name']
+            user_metadata['key_data'] = instance['key_data']
+
+        LOG.debug('user_metadata=%s' % user_metadata)
+        return user_metadata
 
     def _get_conversion_dir(self, instance):
         return '%s/%s' % (self.conversion_dir, instance.uuid)

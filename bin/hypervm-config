@@ -2,7 +2,7 @@
 set -x
 
 CONF_DIRS="/etc/neutron /etc/hybridcloud"
-PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vm_interface container_image_uri"
+PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vm_interface container_image_uri user_data key_data"
 
 function get_user_data {
     # get user data from 169.254.169.254
@@ -35,6 +35,7 @@ for p in $PARAMS; do
    val=${!p}
    val=${val//\//\\/}
    val=${val//\&/\\&}
+   val=${val//$'\n'/}
    sed_command=`echo "s/##$p##/${val}/g;$sed_command"`
 done;
 echo $sed_command
@@ -42,7 +43,7 @@ echo $sed_command
 for d in $CONF_DIRS; do
    for f_tmpl in `find $d -name "*.tmpl"`; do
       f="${f_tmpl%.*}"
-      sed $f_tmpl -e $sed_command > $f
+      sed $f_tmpl -e "$sed_command" > $f
    done;
 done;
 
