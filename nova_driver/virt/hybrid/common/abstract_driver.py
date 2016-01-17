@@ -145,7 +145,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                         'hyperagent.agent.vif_hypernode.HyperNodeVIFDriver')
                 if props['agent_type'] in ['lxd_host', 'lxd']:
                     hyper_agent_vif_driver = (
-                        'hyperagent.agent.vif_lxc_host.LXCHostVIFDriver')
+                        'hyperagent.agent.vif_lxd_host.LXDHostVIFDriver')
             if 'container_image_uri' in props:
                 # 'glance://demo:stack@${glance_host}:${glance_port}/?'
                 # '${image_uuid}'

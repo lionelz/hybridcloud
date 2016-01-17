@@ -1,4 +1,4 @@
-from hyperagent.agent import hyper_agent_utils as hu
+from hyperagent.common import hyper_agent_utils as hu
 
 
 class API(object):
@@ -22,9 +22,14 @@ class API(object):
             defined = True
         return defined
 
-    def image_upload(self, path=None, data=None, headers={}):
-        self._execute('lxc', 'image', 'import',
-                      path, '--alias=%s' % headers['alias'])
+    def image_upload(self, path=None, rootfs=None, alias={}):
+        if rootfs:
+            self._execute('lxc', 'image', 'import',
+                          path, rootfs, '--alias=%s' % alias)
+        else:
+            self._execute('lxc', 'image', 'import',
+                          path, '--alias=%s' % alias)
+            
 
     # containers:
     def container_defined(self, container):

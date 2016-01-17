@@ -1,34 +1,29 @@
+from hyperagent.common import lxd_driver
+
+from hyperagent.common.img_downloader import get_downloader as dwn
 
 
-import abc
-import six
-import urlparse
-
-from nova.openstack.common import importutils
-
-
-def get_container_image(container_image_uri):
-    url = urlparse.urlparse(container_image_uri)
-    scheme = url.scheme
-    cname = 'hyperagent.agent.container_image_%s.container_image_%s' % (
-        scheme, scheme)
-    return importutils.import_object(cname, container_image_uri)
-
-
-@six.add_metaclass(abc.ABCMeta)
 class container_image(object):
 
-    def __init__(self, uri):
-        self._uri = uri
+    def __init__(self, image_uri, rootfs_uri=None):
+        self._image_uri = image_uri
+        self._rootfs_uri = rootfs_uri
+        self.lxd = lxd_driver.API()
+        self._image_alias = 'my-image'
 
-    @abc.abstractmethod
-    def defined(self):
-        pass
+    def _defined(self):
+        return self.lxd.image_defined(self._image_alias)
 
-    @abc.abstractmethod
     def upload(self):
-        pass
+        if self._defined():
+            return False
 
-    @abc.abstractproperty
+        with dwn(self._image_uri) as img_d, dwn(self._rootfs_uri) as rootfs_d:
+            self.lxd.image_upload(path=img_d.get_file_dest(),
+                                  rootfs=rootfs_d.get_file_dest(),
+                                  alias=self._image_alias)
+        return True
+
+    @property
     def alias(self):
-        pass
+        return self._image_alias
