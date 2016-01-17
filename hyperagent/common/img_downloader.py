@@ -18,9 +18,9 @@ def get_downloader(uri):
     if uri:
         url = urlparse.urlparse(uri)
         scheme = url.scheme
-        cname = 'hyperagent.common.downloader.downloader_%s' % scheme
+        cname = 'hyperagent.common.img_downloader.downloader_%s' % scheme
     else:
-        cname = 'hyperagent.common.downloader.downloader_none'
+        cname = 'hyperagent.common.img_downloader.downloader_none'
     return importutils.import_object(cname, uri)
 
 
@@ -70,6 +70,10 @@ class downloader_http(downloader):
         with open(file_name, "wb") as f:
             for data in response.iter_content():
                 f.write(data)
+
+
+class downloader_https(downloader_http):
+    pass
 
 
 class downloader_glance(downloader):

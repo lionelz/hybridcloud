@@ -146,30 +146,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
                 if props['agent_type'] in ['lxd_host', 'lxd']:
                     hyper_agent_vif_driver = (
                         'hyperagent.agent.vif_lxd_host.LXDHostVIFDriver')
-            if 'container_image_uri' in props:
-                # 'glance://demo:stack@${glance_host}:${glance_port}/?'
-                # '${image_uuid}'
-                # '&project_name=demo'
-                # '&${auth_url}'
-                # '&${scheme}'
-                g_api = urlparse.urlparse(cfg.CONF.glance.api_servers[0])
-                prop_s = {
-                    'image_uuid': self._get_my_image_uuid(image_meta),
-                    'auth_url': cfg.CONF.keystone_authtoken.auth_uri,
-                    'scheme': g_api.scheme
-                }
-                curi = props['container_image_uri']
-                for k, v in prop_s.iteritems():
-                    curi = curi.replace('${%s}' % k,
-                                        '%s=%s' % (k, quote(str(v))))
-                simple_s = {
-                    'glance_api_servers': cfg.CONF.glance.api_servers[0],
-                    'glance_host': g_api.hostname,
-                    'glance_port': g_api.port,
-                }
-                for k, v in simple_s.iteritems():
-                    curi = curi.replace('${%s}' % k, '%s' % str(v))
-                user_metadata['container_image_uri'] = curi
+            user_metadata['container_image_uri'] = self._replace_in_uri(
+                image_meta, 'container_image_uri')
+            user_metadata['container_rootfs_uri'] = self._replace_in_uri(
+                image_meta, 'container_rootfs_uri')
         user_metadata['hyper_agent_vif_driver'] = hyper_agent_vif_driver
         # add the user metadata
         if instance.get('user_data', None) is not None:
@@ -181,6 +161,33 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
         LOG.debug('user_metadata=%s' % user_metadata)
         return user_metadata
+
+    def _replace_in_uri(self, image_meta, uri_name):
+        props = image_meta.get('properties')
+        if uri_name in props:
+            # 'glance://demo:stack@${glance_host}:${glance_port}/?'
+            # '${image_uuid}'
+            # '&project_name=demo'
+            # '&${auth_url}'
+            # '&${scheme}'
+            g_api = urlparse.urlparse(cfg.CONF.glance.api_servers[0])
+            prop_s = {
+                'image_uuid': self._get_my_image_uuid(image_meta),
+                'auth_url': cfg.CONF.keystone_authtoken.auth_uri,
+                'scheme': g_api.scheme
+            }
+            curi = props[uri_name]
+            for k, v in prop_s.iteritems():
+                curi = curi.replace('${%s}' % k,
+                                    '%s=%s' % (k, quote(str(v))))
+            simple_s = {
+                'glance_api_servers': cfg.CONF.glance.api_servers[0],
+                'glance_host': g_api.hostname,
+                'glance_port': g_api.port,
+            }
+            for k, v in simple_s.iteritems():
+                curi = curi.replace('${%s}' % k, '%s' % str(v))
+            return curi
 
     def _get_conversion_dir(self, instance):
         return '%s/%s' % (self.conversion_dir, instance.uuid)
