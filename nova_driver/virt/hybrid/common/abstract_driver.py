@@ -21,8 +21,8 @@ from nova import image
 
 from nova.compute import power_state
 
-from nova.openstack.common import jsonutils
-from nova.openstack.common import log as logging
+from oslo_serialization import jsonutils
+from oslo_log import log as logging
 
 from nova.virt import driver
 
@@ -30,7 +30,7 @@ from nova.volume.cinder import API as cinder_api
 
 from nova_driver.virt.hybrid.common import hyper_agent_api
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from urllib import quote
 
@@ -119,15 +119,10 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             return image_meta['properties']['image_id']
 
     def _get_user_metadata(self, instance, image_meta):
-        rabbit_host = cfg.CONF.rabbit_host
-        if 'localhost' in rabbit_host or '127.0.0.1' in rabbit_host:
-            rabbit_host = cfg.CONF.rabbit_hosts[0]
-        if ':' in rabbit_host:
-            rabbit_host = rabbit_host[0:rabbit_host.find(':')]
         user_metadata = {
-            'rabbit_userid': cfg.CONF.rabbit_userid,
-            'rabbit_password': cfg.CONF.rabbit_password,
-            'rabbit_host': rabbit_host,
+            'rabbit_userid': cfg.CONF.oslo_messaging_rabbit.rabbit_userid,
+            'rabbit_password': cfg.CONF.oslo_messaging_rabbit.rabbit_password,
+            'rabbit_hosts': cfg.CONF.oslo_messaging_rabbit.rabbit_hosts,
             'host': instance.uuid,
             # be careful to create the VM with the interface in a good order
             'network_mngt_interface': 'eth0',

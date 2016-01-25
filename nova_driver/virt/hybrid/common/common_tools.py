@@ -2,7 +2,7 @@ import os
 import shutil
 import subprocess
 
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

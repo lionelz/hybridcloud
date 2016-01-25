@@ -1,9 +1,9 @@
 import sys
 
 
-from oslo.config import cfg
+from oslo_config import cfg
 
-from nova.openstack.common import importutils
+from oslo_utils import importutils
 
 from hyperagent.common import config
 from hyperagent.agent import hyper_agent

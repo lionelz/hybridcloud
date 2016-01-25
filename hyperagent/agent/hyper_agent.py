@@ -3,8 +3,13 @@ import sys
 import eventlet
 eventlet.monkey_patch()
 
-from oslo import messaging
-from oslo.config import cfg
+import oslo_messaging as messaging
+
+from oslo_config import cfg
+
+from oslo_log import log as logging
+
+from oslo_utils import importutils
 
 from hyperagent.common import config
 
@@ -12,9 +17,6 @@ from nova import context
 from nova import rpc
 
 from nova.i18n import _LI
-
-from nova.openstack.common import log as logging
-from nova.openstack.common import importutils
 
 
 LOG = logging.getLogger(__name__)

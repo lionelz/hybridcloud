@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>hybridcloud-aws</name>
+	<name>hybridcloud</name>
 	<comment></comment>
 	<projects>
-		<project>nova-juno</project>
+		<project>nova</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

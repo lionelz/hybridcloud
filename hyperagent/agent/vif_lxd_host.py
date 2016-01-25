@@ -1,6 +1,10 @@
 import base64
 
-from oslo.config import cfg
+from oslo_config import cfg
+
+from oslo_concurrency import lockutils
+
+from oslo_log import log as logging
 
 from hyperagent.agent import vif_agent
 
@@ -9,8 +13,6 @@ from hyperagent.common import lxd_driver
 
 from hyperagent.common.container_image import container_image
 
-from nova.openstack.common import lockutils
-from nova.openstack.common import log as logging
 
 hyper_host_opts = [
     cfg.StrOpt('container_image_uri',

@@ -1,5 +1,6 @@
 from nova.i18n import _
-from nova.openstack.common import excutils
+
+from oslo_utils import excutils
 
 
 class HyperAgentException(Exception):

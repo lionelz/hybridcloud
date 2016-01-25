@@ -1,10 +1,11 @@
-from oslo.config import cfg
+from oslo_concurrency import lockutils
+
+from oslo_config import cfg
+
+from oslo_log import log as logging
 
 from hyperagent.common import hyper_agent_utils as hu
 from hyperagent.agent import vif_agent
-
-from nova.openstack.common import lockutils
-from nova.openstack.common import log as logging
 
 hyper_node_agent_opts = [
     cfg.StrOpt('network_mngt_interface',

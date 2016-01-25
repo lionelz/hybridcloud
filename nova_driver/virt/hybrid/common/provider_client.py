@@ -1,13 +1,6 @@
 import abc
 import six
 
-from nova.openstack.common import log as logging
-from oslo.config import cfg
-
-
-LOG = logging.getLogger(__name__)
-CONF = cfg.CONF
-
 
 @six.add_metaclass(abc.ABCMeta)
 class ProviderClient(object):

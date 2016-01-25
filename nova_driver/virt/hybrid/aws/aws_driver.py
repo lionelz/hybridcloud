@@ -1,11 +1,11 @@
 import os
 import time
 
-from oslo.config import cfg
-
 from nova import image
 
-from nova.openstack.common import log as logging
+from oslo_config import cfg
+
+from oslo_log import log as logging
 
 from nova_driver.virt.hybrid.aws import aws_client
 from nova_driver.virt.hybrid.common import abstract_driver

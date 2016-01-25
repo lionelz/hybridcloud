@@ -12,23 +12,22 @@ sudo apt-get update && apt-get upgrade
 sudo apt-get install git
 ```
 
-- get devstack, juno version (eol)
+- get devstack, liberty version
 ```
 git clone https://github.com/openstack-dev/devstack.git
 cd devstack
-git checkout juno-eol
+git checkout stable/liberty
 ```
 - get hybroudcloud code
 ```
 cd /opt/stack
 git clone https://github.com/lionelz/hybridcloud.git
 ```
-- Install pyvcloud version 10 
-     - must be run before the stack script
+- Install pyvcloud 
      - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
 sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev python-pip
-sudo pip install pyvcloud==10
+sudo pip install pyvcloud
 ```
 - Install boto3 for aws access 
 ```
@@ -69,20 +68,6 @@ disable_service h-api
 disable_service h-api-cfn
 disable_service h-api-cw
 disable_service tempest
-
-CEILOMETER_BRANCH=juno-eol
-CINDER_BRANCH=juno-eol
-GLANCE_BRANCH=juno-eol
-HEAT_BRANCH=juno-eol
-HORIZON_BRANCH=juno-eol
-IRONIC_BRANCH=juno-eol
-KEYSTONE_BRANCH=juno-eol
-NEUTRON_BRANCH=juno-eol
-NOVA_BRANCH=juno-eol
-SAHARA_BRANCH=juno-eol
-SWIFT_BRANCH=juno-eol
-TROVE_BRANCH=juno-eol
-REQUIREMENTS_BRANCH=juno-eol
 
 [[post-config|/$Q_PLUGIN_CONF_FILE]]
 [vxlan]
@@ -125,18 +110,11 @@ metadata_iso_catalog = metadata-isos
 mgnt_network = ##name of mgmt net or id##
 data_network = ##name of data net or id##
 ```
-- copy the base-1.vmx file to the folder /opt/stack/data/hybridcloud/vmx
-- copy the base-aws.vmx file to the folder /opt/stack/data/hybridcloud/vmx
+- copy the base-template.vmx file to the folder /opt/stack/data/hybridcloud/vmx
 ```
 mkdir /opt/stack/data/hybridcloud
 mkdir /opt/stack/data/hybridcloud/vmx
-cp /opt/stack/hybridcloud/etc/hybridcloud/base-1.vmx /opt/stack/data/hybridcloud/vmx 
-cp /opt/stack/hybridcloud/etc/hybridcloud/base-aws.vmx /opt/stack/data/hybridcloud/vmx 
-```
-- TROUBLESHOOTING: oslo.utils package version must be 1.4.1
-```
-sudo pip uninstall oslo.utils
-sudo pip install oslo.utils==1.4.1
+cp /opt/stack/hybridcloud/etc/hybridcloud/base-template.vmx /opt/stack/data/hybridcloud/vmx 
 ``` 
 - Install openstack
 ``` 

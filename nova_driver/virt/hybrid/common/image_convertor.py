@@ -3,8 +3,10 @@ import shutil
 import subprocess
 
 from nova import image
-from nova.openstack.common import log as logging
-from nova.openstack.common import fileutils
+
+from oslo_log import log as logging
+
+from oslo_utils import fileutils
 
 from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import hybrid_task_states
@@ -139,7 +141,7 @@ class ImageConvertorToOvf(object):
             read_iter = IMAGE_API.download(self._context, self._image_uuid)
             glance_file_handle = util.GlanceFileRead(read_iter)
 
-            orig_file_handle = fileutils.file_open(orig_file_name, "wb")
+            orig_file_handle = file(orig_file_name, "wb")
 
             util.start_transfer(self._context,
                                 glance_file_handle,

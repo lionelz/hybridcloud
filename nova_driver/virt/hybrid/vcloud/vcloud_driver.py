@@ -21,12 +21,17 @@ import shutil
 import time
 import urllib2
 
-from oslo.config import cfg
+
+from oslo_config import cfg
+
+from oslo_log import log as logging
+
+from oslo_utils import fileutils
 
 from nova import image
+
 from nova.compute import task_states
-from nova.openstack.common import log as logging
-from nova.openstack.common import fileutils
+
 from nova_driver.virt.hybrid.common import abstract_driver
 from nova_driver.virt.hybrid.common import common_tools
 from nova_driver.virt.hybrid.common import hybrid_task_states
@@ -190,7 +195,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
     def _download_vmdk_from_vcloud(self, context, src_url, dst_file_name):
 
         # local_file_handle = open(dst_file_name, "wb")
-        local_file_handle = fileutils.file_open(dst_file_name, "wb")
+        local_file_handle = file(dst_file_name, "wb")
 
         remote_file_handle = urllib2.urlopen(src_url)
         file_size = remote_file_handle.headers['content-length']
@@ -203,7 +208,7 @@ class VCloudDriver(abstract_driver.AbstractHybridNovaDriver):
 
         vm_task_state = instance.task_state
         file_size = os.path.getsize(src_file_name)
-        read_file_handle = fileutils.file_open(src_file_name, "rb")
+        read_file_handle = file(src_file_name, "rb")
 
         metadata = IMAGE_API.get(context, image_id)
 

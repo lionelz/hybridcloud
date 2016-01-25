@@ -1,11 +1,13 @@
 import os
 import sys
 
-from oslo import messaging
-from oslo.config import cfg
+from oslo_config import cfg
+
+from oslo_log import log as logging
+
+import oslo_messaging as messaging
 
 from nova.i18n import _, _LI
-from nova.openstack.common import log as logging
 
 from hyperagent import version
 

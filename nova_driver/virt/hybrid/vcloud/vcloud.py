@@ -13,10 +13,10 @@
 # limitations under the License.
 
 from nova_driver.virt.hybrid.vcloud import exceptions
-from oslo.utils import excutils
-from oslo.vmware.common import loopingcall
+from oslo_utils import excutils
+from oslo_service import loopingcall
 from nova.compute import power_state
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from nova.i18n import _LW, _LE
 from threading import Lock
 import requests
@@ -63,8 +63,8 @@ class VCLOUD_STATUS:
 
 STATUS_DICT_VAPP_TO_INSTANCE = {
     VCLOUD_STATUS.FAILED_CREATION: power_state.CRASHED,
-    VCLOUD_STATUS.UNRESOLVED: power_state.BUILDING,
-    VCLOUD_STATUS.RESOLVED: power_state.BUILDING,
+    VCLOUD_STATUS.UNRESOLVED: power_state.NOSTATE,
+    VCLOUD_STATUS.RESOLVED: power_state.NOSTATE,
     VCLOUD_STATUS.DEPLOYED: power_state.NOSTATE,
     VCLOUD_STATUS.SUSPENDED: power_state.SUSPENDED,
     VCLOUD_STATUS.POWERED_ON: power_state.RUNNING,

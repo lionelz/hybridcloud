@@ -11,10 +11,11 @@
 #    under the License.
 import os
 
-from oslo.config import cfg
+from oslo_concurrency import processutils
 
-from nova.openstack.common import processutils
-from nova.openstack.common import log as logging
+from oslo_config import cfg
+
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

@@ -3,12 +3,13 @@ import time
 
 
 from nova import exception
-from nova.openstack.common import log as logging
+
+from oslo_config import cfg
+
+from oslo_log import log as logging
 
 from nova_driver.virt.hybrid.common import provider_client
 from nova_driver.virt.hybrid.vcloud import vcloud
-
-from oslo.config import cfg
 
 
 LOG = logging.getLogger(__name__)

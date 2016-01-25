@@ -11,7 +11,7 @@ from keystoneclient import session
 
 from keystoneclient.auth.identity import v2 as v2_auth
 
-from nova.openstack.common import importutils
+from oslo_utils import importutils
 
 
 def get_downloader(uri):

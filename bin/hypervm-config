@@ -2,7 +2,7 @@
 set -x
 
 CONF_DIRS="/etc/neutron /etc/hybridcloud"
-PARAMS="rabbit_userid rabbit_host rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vm_interface container_image_uri container_rootfs_uri user_data key_data"
+PARAMS="rabbit_userid rabbit_hosts rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vm_interface container_image_uri container_rootfs_uri user_data key_data"
 
 function get_user_data {
     # get user data from 169.254.169.254

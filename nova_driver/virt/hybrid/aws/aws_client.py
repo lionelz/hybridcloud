@@ -9,7 +9,7 @@ from nova import exception
 
 from nova.compute import power_state
 
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 
 from nova_driver.virt.hybrid.common import hybrid_task_states
 from nova_driver.virt.hybrid.common import provider_client
@@ -27,7 +27,7 @@ class NodeState(object):
 
 AWS_POWER_STATE = {
     NodeState.RUNNING: power_state.RUNNING,
-    NodeState.PENDING: power_state.BUILDING,
+    NodeState.PENDING: power_state.NOSTATE,
     NodeState.STOPPING: power_state.SHUTDOWN,
     NodeState.STOPPED: power_state.SHUTDOWN,
     NodeState.TERMINATED: power_state.CRASHED,

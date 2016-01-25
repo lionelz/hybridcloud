@@ -19,11 +19,11 @@ edit_sysctl net.ipv4.conf.default.rp_filter 0
 sysctl -p
 
 # install the nova/neutron packages
-add-apt-repository -y cloud-archive:juno
+add-apt-repository cloud-archive:liberty
 apt-get -y update
 apt-get -y upgrade
 apt-get -y dist-upgrade
-apt-get --no-install-recommends -y install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
+apt-get --no-install-recommends -y install neutron-plugin-openvswitch neutron-plugin-openvswitch-agent
 apt-get --no-install-recommends -y install python-nova
 
 FROM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
@@ -33,7 +33,7 @@ PYTHON_PKG_DIR=/usr/lib/python2.7/dist-packages
 rm -rf $PYTHON_PKG_DIR/hyperagent
 rm -rf $PYTHON_PKG_DIR/hyperagent-info
 cp -r $FROM_DIR/hyperagent $PYTHON_PKG_DIR
-cp -r $FROM_DIR/hyperagent.egg-info $PYTHON_PKG_DIR/hyperagent-0.0.2.egg-info
+cp -r $FROM_DIR/hyperagent.egg-info $PYTHON_PKG_DIR/hyperagent-0.0.3.egg-info
 
 # binaries
 bin_files='hyper-agent hyper-agent-cleanup hyper-agent-rootwrap hypervm-config'

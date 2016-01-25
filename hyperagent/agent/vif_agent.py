@@ -1,8 +1,9 @@
 from hyperagent.common import hyper_agent_utils as hu
 from hyperagent.common import hyper_vif_driver
 
-from nova.openstack.common import lockutils
-from nova.openstack.common import log as logging
+from oslo_concurrency import lockutils
+
+from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)
