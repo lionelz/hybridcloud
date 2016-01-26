@@ -22,16 +22,6 @@ from nova.i18n import _LI
 LOG = logging.getLogger(__name__)
 
 
-hyper_agent_default_opts = [
-    cfg.StrOpt('hyper_agent_vif_driver',
-               default='hyperagent.agent.vif_agent.AgentVMVIFDriver',
-               help='The Hyper Agent VIF Driver'),
-    ]
-
-
-cfg.CONF.register_opts(hyper_agent_default_opts)
-
-
 class HyperAgentCallback(object):
     """Processes the rpc call back."""
 
@@ -122,10 +112,7 @@ class HyperAgent(object):
 
 
 def main():
-    config.register_root_helper(cfg.CONF)
-    config.register_agent_state_opts_helper(cfg.CONF)
     config.init(sys.argv[1:])
-    config.setup_logging()
 
     agent = HyperAgent()
     # Start everything.

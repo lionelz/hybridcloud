@@ -55,6 +55,7 @@ cp -r $FROM_DIR/etc/hybridcloud /etc
 rm -rf `find /etc/neutron -name "*.tmpl"`
 cp $FROM_DIR/etc/neutron/neutron.conf.tmpl /etc/neutron
 cp $FROM_DIR/etc/neutron/plugins/ml2/ml2_conf.ini.tmpl /etc/neutron/plugins/ml2
+cp $FROM_DIR/etc/neutron/plugins/ml2/openvswitch_agent.ini.tmpl /etc/neutron/plugins/ml2
 
 # var folder
 rm -rf /var/log/hybridcloud

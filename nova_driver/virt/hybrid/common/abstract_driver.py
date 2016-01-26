@@ -25,6 +25,7 @@ from oslo_serialization import jsonutils
 from oslo_log import log as logging
 
 from nova.virt import driver
+from nova.virt import hardware
 
 from nova.volume.cinder import API as cinder_api
 
@@ -119,10 +120,16 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
             return image_meta['properties']['image_id']
 
     def _get_user_metadata(self, instance, image_meta):
+        rabbit_hosts = None
+        for rabbit_host in rabbit_hosts:
+            if rabbit_hosts:
+                rabbit_hosts = '%s,%s' % (rabbit_hosts, rabbit_host)
+            else:
+                rabbit_hosts = rabbit_host
         user_metadata = {
             'rabbit_userid': cfg.CONF.oslo_messaging_rabbit.rabbit_userid,
             'rabbit_password': cfg.CONF.oslo_messaging_rabbit.rabbit_password,
-            'rabbit_hosts': cfg.CONF.oslo_messaging_rabbit.rabbit_hosts,
+            'rabbit_hosts': rabbit_hosts,
             'host': instance.uuid,
             # be careful to create the VM with the interface in a good order
             'network_mngt_interface': 'eth0',
@@ -470,11 +477,13 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
         except Exception as e:
             LOG.info('can not get info for VM %s: %s' % (instance.uuid, e))
 
-        return {'state': state,
-                'max_mem': 0,
-                'mem': 0,
-                'num_cpu': 1,
-                'cpu_time': 0}
+        return hardware.InstanceInfo(
+            state=state,
+            max_mem_kb=0,
+            mem_kb=0,
+            num_cpu=1,
+            cpu_time_ns=0
+        )
 
     def plug_vifs(self, instance, network_info):
         LOG.debug("plug_vifs")

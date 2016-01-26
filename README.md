@@ -17,16 +17,16 @@ sudo apt-get install git
 git clone https://github.com/openstack-dev/devstack.git
 cd devstack
 git checkout stable/liberty
+./stack.sh (stop it Ctrl-C after pip installation)
 ```
-- get hybroudcloud code
+- get hybridcloud code
 ```
 cd /opt/stack
 git clone https://github.com/lionelz/hybridcloud.git
 ```
 - Install pyvcloud 
-     - If pip is not installed, run the stack script and interrupt it after the pip command is installed  
 ```
-sudo apt-get install libz-dev libxml2-dev libxslt1-dev python-dev python-pip
+sudo apt-get install libz-dev libxml2-dev libxslt1-dev
 sudo pip install pyvcloud
 ```
 - Install boto3 for aws access 
@@ -35,12 +35,18 @@ sudo pip install boto3
 ```
 - install ovftool (tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle)
 ```
-sh tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle
+sh /opt/stack/hybridcloud/tools/VMware-ovftool-4.1.0-2459827-lin.x86_64.bundle
 ```
 - Add in the PYTHONPATH the folder /opt/stack/hybridcloud
 ```
 Add in the file ~/.bashrc add at the end:
 export PYTHONPATH=/opt/stack/hybridcloud
+```
+- copy the base-template.vmx file to the folder /opt/stack/data/hybridcloud/vmx
+```
+mkdir /opt/stack/data/hybridcloud
+mkdir /opt/stack/data/hybridcloud/vmx
+cp /opt/stack/hybridcloud/etc/hybridcloud/base-template.vmx /opt/stack/data/hybridcloud/vmx 
 ```
 - local.conf configuration sample
 ```
@@ -52,7 +58,7 @@ ADMIN_PASSWORD=stack
 DATABASE_PASSWORD=$ADMIN_PASSWORD
 RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
-SERVICE_TOKEN=## unique service token##
+SERVICE_TOKEN=$ADMIN_PASSWORD
 
 disable_service n-net
 enable_service q-svc
@@ -99,7 +105,7 @@ security_group_data_network = ## data security group id subnet ##
 data_network = ##name of data net or id##
 
 [vcloud]
-node_name=##node description name##
+node_name = ##node description name##
 host_ip = ##vcloud ip##
 host_username = ##vcloud user##
 host_password = ##vcloud password##
@@ -109,14 +115,8 @@ flavor_map = m1.nano:1, m1.micro:1, m1.tiny:1, m1.small:1, m1.medium:1, m1.large
 metadata_iso_catalog = metadata-isos
 mgnt_network = ##name of mgmt net or id##
 data_network = ##name of data net or id##
-```
-- copy the base-template.vmx file to the folder /opt/stack/data/hybridcloud/vmx
-```
-mkdir /opt/stack/data/hybridcloud
-mkdir /opt/stack/data/hybridcloud/vmx
-cp /opt/stack/hybridcloud/etc/hybridcloud/base-template.vmx /opt/stack/data/hybridcloud/vmx 
 ``` 
-- Install openstack
+- Run stack script
 ``` 
 cd ~/devstack && ./stack.sh
 ``` 
@@ -130,5 +130,3 @@ git clone https://github.com/lionelz/hybridcloud.git
 cd hybridcloud
 sudo ./bin/install_hypervm.sh
 ```
-
-
