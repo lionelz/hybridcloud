@@ -19,10 +19,11 @@ edit_sysctl net.ipv4.conf.default.rp_filter 0
 sysctl -p
 
 # install the nova/neutron packages
-add-apt-repository cloud-archive:liberty
+add-apt-repository -y cloud-archive:liberty
 apt-get -y update
 apt-get -y upgrade
 apt-get -y dist-upgrade
+apt-get -y install bridge-utils
 apt-get --no-install-recommends -y install neutron-plugin-openvswitch neutron-plugin-openvswitch-agent
 apt-get --no-install-recommends -y install python-nova
 
@@ -60,3 +61,11 @@ cp $FROM_DIR/etc/neutron/plugins/ml2/openvswitch_agent.ini.tmpl /etc/neutron/plu
 # var folder
 rm -rf /var/log/hybridcloud
 mkdir /var/log/hybridcloud
+
+# clean
+apt-get clean
+rm -f /var/lib/apt/lists/*
+cd ~
+rm -rf $FROM_DIR
+cat /dev/zero > zero
+rm -f zero

@@ -121,7 +121,7 @@ class AbstractHybridNovaDriver(driver.ComputeDriver):
 
     def _get_user_metadata(self, instance, image_meta):
         rabbit_hosts = None
-        for rabbit_host in rabbit_hosts:
+        for rabbit_host in cfg.CONF.oslo_messaging_rabbit.rabbit_hosts:
             if rabbit_hosts:
                 rabbit_hosts = '%s,%s' % (rabbit_hosts, rabbit_host)
             else:
