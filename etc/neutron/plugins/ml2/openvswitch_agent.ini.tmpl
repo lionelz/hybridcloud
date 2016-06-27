@@ -1,0 +1,26 @@
+[ovs]
+enable_tunneling = True
+local_ip = ##local_ip##
+
+[agent]
+polling_interval = 60
+dont_fragment = False
+veth_mtu = ##network_device_mtu##
+tunnel_types = vxlan
+l2_population = True
+arp_responder = True
+enable_distributed_routing = True
+
+[ml2]
+path_mtu = ##network_device_mtu##
+tenant_network_types = vxlan
+type_drivers = vxlan
+mechanism_drivers = openvswitch, l2population
+
+[ml2_type_vxlan]
+vni_ranges = 1001:10000
+
+[securitygroup]
+firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+enable_security_group = True
+enable_ipset = True

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>hybridcloud</name>
+	<comment></comment>
+	<projects>
+		<project>keystoneclient</project>
+		<project>keystonemiddleware</project>
+		<project>nova</project>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.python.pydev.PyDevBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.python.pydev.pythonNature</nature>
+	</natures>
+</projectDescription>

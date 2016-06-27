@@ -1,0 +1,12 @@
+Metadata-Version: 1.1
+Name: hyperagent
+Version: 2015.08.09-01
+Summary: Hypbrid Cloud Hyperagent
+Home-page: http://www.openstack.org/
+Author: Huawei
+Author-email: lionel.zerbib@huawei.com
+
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 2.6
