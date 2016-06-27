@@ -1,0 +1,59 @@
+.encoding = "UTF-8"
+config.version = "8"
+virtualHW.version = "10"
+
+nvram = "${vmname}.nvram"
+memsize = "1024"
+sched.cpu.min = "1"
+
+pciBridge0.present = "TRUE"
+pciBridge4.present = "TRUE"
+pciBridge4.virtualDev = "pcieRootPort"
+pciBridge4.functions = "8"
+pciBridge5.present = "TRUE"
+pciBridge5.virtualDev = "pcieRootPort"
+pciBridge5.functions = "8"
+pciBridge6.present = "TRUE"
+pciBridge6.virtualDev = "pcieRootPort"
+pciBridge6.functions = "8"
+pciBridge7.present = "TRUE"
+pciBridge7.virtualDev = "pcieRootPort"
+pciBridge7.functions = "8"
+
+
+vmci0.present = "TRUE"
+hpet0.present = "TRUE"
+virtualHW.productCompatibility = "hosted"
+
+ide0:0.present = "TRUE"
+ide0:0.startConnected = "FALSE"
+ide0:0.deviceType = "cdrom-image"
+
+floppy0.present = "FALSE"
+
+toolScripts.afterPowerOn = "FALSE"
+toolScripts.afterResume = "FALSE"
+toolScripts.beforeSuspend = "FALSE"
+toolScripts.beforePowerOff = "FALSE"
+tools.remindInstall = "FALSE"
+
+uuid.bios = "42 1c ad a2 c1 7d 57 ce-63 00 ef 26 12 2a 5d d1"
+
+vc.uuid = "50 1c 44 58 01 26 d3 38-67 a8 e7 67 7c 91 38 00"
+
+uuid.location = "56 4d c5 a6 1f 76 e1 cb-15 b8 40 fa 92 39 1d 66"
+
+cleanShutdown = "TRUE"
+softPowerOff = "FALSE"
+
+scsi0.virtualDev = "lsilogic"
+scsi0.present = "TRUE"
+scsi0:0.deviceType = "scsi-hardDisk"
+scsi0:0.fileName = "${disk0}.vmdk"
+scsi0:0.present = "TRUE"
+scsi0:0.redo = ""
+
+sched.scsi0:0.vFlash.enabled = "TRUE"
+config.readOnly = "FALSE"
+
+guestOS = "otherlinux-64"

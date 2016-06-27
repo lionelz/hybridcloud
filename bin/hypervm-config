@@ -1,0 +1,90 @@
+#!/bin/bash
+set -x
+
+CONF_DIRS="/etc/neutron /etc/hybridcloud"
+PARAMS="rabbit_userid rabbit_hosts rabbit_password host local_ip hyper_agent_vif_driver network_mngt_interface network_data_interface network_vms_interface container_image_uri container_rootfs_uri user_data key_data eth0_ip eth0_size eth1_ip eth1_size eth2_ip eth2_size network_device_mtu network_device_mtu_overhead"
+
+function get_user_data {
+    # get user data from 169.254.169.254
+    curl http://169.254.169.254/latest/user-data/ > /tmp/user-data-1111
+    source /tmp/user-data-1111
+}
+
+# try to mount the cdrom
+mkdir /media/metadata
+mount -o user,exec,utf8 -t iso9660 /dev/sr0 /media/metadata
+
+if [ -f "/media/metadata/userdata.txt" ];
+then
+    source /media/metadata/userdata.txt
+else
+    # get the metadata from 169.254.169.254
+    echo "a cdrom is present but no user data file"
+    # try to read for user data from 169.254.169.254
+    get_user_data
+fi
+
+# configure manual ips
+if [ "${eth0}" == "manual" ];
+then
+    ip addr add ${eth0_ip}/${eth0_size} dev eth0
+fi
+if [ "${eth1}" == "dhcp" ];
+then
+    ifup --force eth1
+    ip link set eth1 up
+    dhclient -1 -v -pf /run/dhclient.eth1.pid -lf /var/lib/dhcp/dhclient.eth1.leases eth1 &
+    sleep 1
+fi
+if [ "${eth1}" == "manual" ];
+then
+    ifup --force eth1
+    ip link set eth1 up
+    ip addr add ${eth1_ip}/${eth1_size} dev eth1
+fi
+if [ "${eth2}" == "dhcp" ];
+then
+    ifup --force eth2
+    ip link set eth2 up
+    dhclient -1 -v -pf /run/dhclient.eth2.pid -lf /var/lib/dhcp/dhclient.eth2.leases eth2 &
+    sleep 1
+fi
+if [ "${eth2}" == "manual" ];
+then
+    ifup --force eth2
+    ip link set eth2 up
+    ip addr add ${eth2_ip}/${eth2_size} dev eth2
+fi
+
+# gateway
+if [ ! -z "${provider_gateway}" ];
+then
+    ip route del 0/0
+    ip route add default via ${provider_gateway}
+fi
+
+export local_ip=`ip -o -4 a | grep ${network_data_interface} | awk -e '{print $4}' | cut -f1 -d'/'`
+
+# replace the tmpl values
+sed_command=""
+for p in $PARAMS; do
+   val=${!p}
+   val=${val//\//\\/}
+   val=${val//\&/\\&}
+   val=${val//$'\n'/}
+   sed_command=`echo "s/##$p##/${val}/g;$sed_command"`
+done;
+echo $sed_command
+
+for d in $CONF_DIRS; do
+   for f_tmpl in `find $d -name "*.tmpl"`; do
+      f="${f_tmpl%.*}"
+      sed $f_tmpl -e "$sed_command" > $f
+   done;
+done;
+
+echo $host > /etc/hostname
+hostname $host
+grep -v 127.0.0.1 /etc/hosts > /tmp/hosts.bk2
+echo '127.0.0.1 localhost '$host > /tmp/hosts.bk1
+cat /tmp/hosts.bk1 /tmp/hosts.bk2 > /etc/hosts

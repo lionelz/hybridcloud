@@ -1,0 +1,11 @@
+[ovs]
+enable_tunneling = True
+local_ip = ##local_ip##
+
+[agent]
+dont_fragment = False
+veth_mtu = ##network_device_mtu##
+tunnel_types = vxlan
+l2_population = True
+arp_responder = True
+enable_distributed_routing = True

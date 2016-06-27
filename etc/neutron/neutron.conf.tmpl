@@ -1,0 +1,15 @@
+[DEFAULT]
+core_plugin = ml2
+debug = True
+host = ##host##
+lock_path = $state_path/lock
+rpc_backend = rabbit
+network_device_mtu = ##network_device_mtu##
+
+[oslo_messaging_rabbit]
+rabbit_userid = ##rabbit_userid##
+rabbit_password = ##rabbit_password##
+rabbit_hosts = ##rabbit_hosts##
+
+[agent]
+root_helper = sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
